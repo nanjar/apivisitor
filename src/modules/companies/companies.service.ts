@@ -1,0 +1,119 @@
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { I18nService } from 'nestjs-i18n';
+import { Repository } from 'typeorm';
+import { ExhibitorCompany } from './entities/exhibitor-company.entity';
+import { Exhibitor } from './entities/exhibitor.entity';
+import { ExhibitorProduct } from './entities/exhibitor-product.entity';
+import { VisitorCompanyViewLog } from '../explore/entities/visitor-company-view-log.entity';
+import { BoothResolverService } from '../checkin/booth-resolver.service';
+import { CompanyDetailResponseDto } from './dto/company-detail-response.dto';
+
+@Injectable()
+export class CompaniesService {
+  private readonly logger = new Logger(CompaniesService.name);
+
+  constructor(
+    @InjectRepository(ExhibitorCompany)
+    private readonly companyRepo: Repository<ExhibitorCompany>,
+    @InjectRepository(Exhibitor)
+    private readonly exhibitorRepo: Repository<Exhibitor>,
+    @InjectRepository(ExhibitorProduct)
+    private readonly productRepo: Repository<ExhibitorProduct>,
+    @InjectRepository(VisitorCompanyViewLog)
+    private readonly viewLogRepo: Repository<VisitorCompanyViewLog>,
+    private readonly boothResolver: BoothResolverService,
+    private readonly i18n: I18nService,
+  ) {}
+
+  async getDetail(
+    eventsId: number,
+    companyId: number,
+    guestsId?: number,
+  ): Promise<CompanyDetailResponseDto> {
+    const company = await this.companyRepo.findOne({
+      where: { eventsId, id: companyId },
+    });
+    if (!company) {
+      throw new NotFoundException(this.i18n.t('messages.errors.companyNotFound'));
+    }
+
+    const [pics, totalProducts, booth] = await Promise.all([
+      this.exhibitorRepo.find({
+        where: { eventsId, companyId, approvalStatus: 'AP' },
+        order: { inCharge: 'DESC' },
+      }),
+      this.productRepo.count({
+        where: { eventsId, companyId, approvalStatus: 'AP' },
+      }),
+      this.boothResolver.resolveOne(eventsId, companyId),
+    ]);
+
+    // Catat "Recently Viewed" — fire-and-forget, gak boleh gagalin response
+    // Company Detail kalau logging-nya error (mis. schema tabel beda dari
+    // asumsi). guestsId opsional karena endpoint ini secara teknis bisa
+    // dipanggil tanpa konteks visitor tertentu di masa depan.
+    if (guestsId) {
+      this.recordView(eventsId, guestsId, companyId).catch((err) => {
+        this.logger.warn(
+          `Gagal catat recently-viewed (company ${companyId}, guest ${guestsId}): ${err instanceof Error ? err.message : err}`,
+        );
+      });
+    }
+
+    return {
+      id: company.id,
+      companyName: company.companyName,
+      details: company.details,
+      logo: company.logo,
+      country: company.country,
+      companyWebsite: company.companyWebsite,
+      companyProfileUrl: company.companyProfileUrl,
+      venueName: booth.venueName,
+      hallLabel: booth.hallLabel,
+      boothLabel: booth.boothLabel,
+      pics: pics.map((p) => ({
+        id: p.id,
+        fullname: p.fullname,
+        jobTitle: p.jobTitle,
+        phone: `${p.countryCode ?? ''}${p.phone}`,
+        email: p.exhibitorEmail,
+      })),
+      totalProducts,
+    };
+  }
+
+  async getProducts(eventsId: number, companyId: number, page = 1, limit = 20) {
+    const [items, total] = await this.productRepo.findAndCount({
+      where: { eventsId, companyId, approvalStatus: 'AP' },
+      order: { created: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      items: items.map((p) => ({
+        id: p.id,
+        productName: p.productName,
+        productLogo: p.productLogo,
+        investmentFee: p.investmentFee,
+        productDescription: p.productDescription,
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  private async recordView(eventsId: number, guestsId: number, companyId: number) {
+    const existing = await this.viewLogRepo.findOne({ where: { eventsId, guestsId, companyId } });
+    if (existing) {
+      existing.viewedAt = new Date();
+      await this.viewLogRepo.save(existing);
+    } else {
+      await this.viewLogRepo.save(
+        this.viewLogRepo.create({ eventsId, guestsId, companyId, viewedAt: new Date() }),
+      );
+    }
+  }
+}

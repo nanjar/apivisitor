@@ -1,0 +1,34 @@
+{
+  "errors": {
+    "visitorNotFound": "Visitor tidak ditemukan",
+    "speakerNotFound": "Speaker tidak ditemukan",
+    "companyNotFound": "Company tidak ditemukan",
+    "sessionNotFound": "Sesi tidak ditemukan",
+    "productNotFound": "Produk tidak ditemukan",
+    "chatRoomNotFound": "Chat room tidak ditemukan",
+    "notificationNotFound": "Notifikasi tidak ditemukan",
+    "appointmentNotFound": "Appointment tidak ditemukan",
+    "boothVenueNotFound": "Booth/venue tujuan tidak ditemukan",
+
+    "invalidToken": "Token tiket tidak valid",
+    "ticketNotApproved": "Tiket belum disetujui (approval status bukan AP), hubungi panitia",
+    "invalidOrExpiredRefreshToken": "Refresh token tidak valid atau kedaluwarsa",
+
+    "endBeforeStart": "Waktu selesai harus setelah waktu mulai",
+    "bookingInThePast": "Tidak bisa booking untuk waktu yang sudah lewat",
+    "slotAlreadyBooked": "Slot waktu ini sudah dibooking pihak lain, pilih waktu lain",
+    "notAppointmentOwner": "Anda tidak berhak membatalkan appointment ini",
+
+    "aiAssistantUnavailable": "Asisten AI sedang tidak tersedia, coba lagi sebentar lagi.",
+
+    "internalServerError": "Terjadi kesalahan pada server"
+  },
+  "appointmentStatus": {
+    "PE": "Menunggu Konfirmasi",
+    "AP": "Terkonfirmasi",
+    "RJ": "Ditolak",
+    "CL": "Dibatalkan",
+    "CO": "Selesai",
+    "RS": "Menunggu Respons"
+  }
+}

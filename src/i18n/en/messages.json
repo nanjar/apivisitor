@@ -1,0 +1,34 @@
+{
+  "errors": {
+    "visitorNotFound": "Visitor not found",
+    "speakerNotFound": "Speaker not found",
+    "companyNotFound": "Company not found",
+    "sessionNotFound": "Session not found",
+    "productNotFound": "Product not found",
+    "chatRoomNotFound": "Chat room not found",
+    "notificationNotFound": "Notification not found",
+    "appointmentNotFound": "Appointment not found",
+    "boothVenueNotFound": "Target booth/venue not found",
+
+    "invalidToken": "Invalid ticket token",
+    "ticketNotApproved": "Ticket is not approved yet (approval status is not AP), please contact the organizer",
+    "invalidOrExpiredRefreshToken": "Invalid or expired refresh token",
+
+    "endBeforeStart": "End time must be after start time",
+    "bookingInThePast": "Cannot book a time slot in the past",
+    "slotAlreadyBooked": "This time slot has already been booked by someone else, please choose another time",
+    "notAppointmentOwner": "You are not authorized to cancel this appointment",
+
+    "aiAssistantUnavailable": "The AI assistant is currently unavailable, please try again shortly.",
+
+    "internalServerError": "An internal server error occurred"
+  },
+  "appointmentStatus": {
+    "PE": "Pending",
+    "AP": "Confirmed",
+    "RJ": "Rejected",
+    "CL": "Cancelled",
+    "CO": "Completed",
+    "RS": "Pending Response"
+  }
+}
