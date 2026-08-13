@@ -6,6 +6,12 @@ export class ProductSearchQueryDto {
   @IsString()
   keyword?: string;
 
+  // Filter berdasarkan product type (dari filter chip: Automation/IoT/AI/dst)
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  productTypeId?: number;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

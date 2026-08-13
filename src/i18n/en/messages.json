@@ -9,6 +9,8 @@
     "notificationNotFound": "Notification not found",
     "appointmentNotFound": "Appointment not found",
     "boothVenueNotFound": "Target booth/venue not found",
+    "agendaNotFound": "Selected agenda/day not found",
+    "meetingLocationNotFound": "Meeting location not found or inactive",
 
     "invalidToken": "Invalid ticket token",
     "ticketNotApproved": "Ticket is not approved yet (approval status is not AP), please contact the organizer",

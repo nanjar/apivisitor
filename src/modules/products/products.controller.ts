@@ -18,6 +18,12 @@ export class ProductsController {
     return this.productsService.search(user.eventsId, query);
   }
 
+  // Filter chip "All (24) | Automation | IoT | AI | Sensor" di Product Catalog
+  @Get('types')
+  listTypes(@CurrentUser() user: CurrentVisitor) {
+    return this.productsService.listProductTypes(user.eventsId);
+  }
+
   // Detail produk (dibuka dari card produk)
   @Get('company/:companyId/:productId')
   getDetail(

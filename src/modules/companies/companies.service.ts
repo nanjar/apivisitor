@@ -5,8 +5,10 @@ import { Repository } from 'typeorm';
 import { ExhibitorCompany } from './entities/exhibitor-company.entity';
 import { Exhibitor } from './entities/exhibitor.entity';
 import { ExhibitorProduct } from './entities/exhibitor-product.entity';
+import { ExhibitorProductHasType } from './entities/exhibitor-product-has-type.entity';
 import { VisitorCompanyViewLog } from '../explore/entities/visitor-company-view-log.entity';
 import { BoothResolverService } from '../checkin/booth-resolver.service';
+import { ProductTypeResolverService } from '../product-types/product-type-resolver.service';
 import { CompanyDetailResponseDto } from './dto/company-detail-response.dto';
 
 @Injectable()
@@ -23,6 +25,7 @@ export class CompaniesService {
     @InjectRepository(VisitorCompanyViewLog)
     private readonly viewLogRepo: Repository<VisitorCompanyViewLog>,
     private readonly boothResolver: BoothResolverService,
+    private readonly productTypeResolver: ProductTypeResolverService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -83,13 +86,38 @@ export class CompaniesService {
     };
   }
 
-  async getProducts(eventsId: number, companyId: number, page = 1, limit = 20) {
-    const [items, total] = await this.productRepo.findAndCount({
-      where: { eventsId, companyId, approvalStatus: 'AP' },
-      order: { created: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  async getProducts(
+    eventsId: number,
+    companyId: number,
+    page = 1,
+    limit = 20,
+    productTypeId?: number,
+  ) {
+    const qb = this.productRepo
+      .createQueryBuilder('p')
+      .where('p.eventsId = :eventsId', { eventsId })
+      .andWhere('p.companyId = :companyId', { companyId })
+      .andWhere('p.approvalStatus = :status', { status: 'AP' });
+
+    if (productTypeId !== undefined) {
+      qb.innerJoin(
+        ExhibitorProductHasType,
+        'pivot',
+        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId = :typeId',
+        { typeId: productTypeId },
+      );
+    }
+
+    const [items, total] = await qb
+      .orderBy('p.created', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const productTypeMap = await this.productTypeResolver.resolveForProducts(
+      eventsId,
+      items.map((p) => ({ companyId: p.companyId, productId: p.id })),
+    );
 
     return {
       items: items.map((p) => ({
@@ -98,6 +126,7 @@ export class CompaniesService {
         productLogo: p.productLogo,
         investmentFee: p.investmentFee,
         productDescription: p.productDescription,
+        productTypes: productTypeMap.get(`${p.companyId}-${p.id}`) ?? [],
       })),
       total,
       page,

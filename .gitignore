@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment (JANGAN PERNAH commit .env - isinya secret/password)
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Firebase service account (secret, JANGAN commit)
+firebase-service-account.json
+
+# OS/Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Test coverage
+coverage/

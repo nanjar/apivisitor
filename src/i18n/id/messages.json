@@ -9,6 +9,8 @@
     "notificationNotFound": "Notifikasi tidak ditemukan",
     "appointmentNotFound": "Appointment tidak ditemukan",
     "boothVenueNotFound": "Booth/venue tujuan tidak ditemukan",
+    "agendaNotFound": "Agenda/hari yang dipilih tidak ditemukan",
+    "meetingLocationNotFound": "Meeting location tidak ditemukan atau tidak aktif",
 
     "invalidToken": "Token tiket tidak valid",
     "ticketNotApproved": "Tiket belum disetujui (approval status bukan AP), hubungi panitia",

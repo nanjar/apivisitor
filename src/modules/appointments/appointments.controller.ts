@@ -19,6 +19,35 @@ export class AppointmentsController {
     return this.appointmentsService.create(user.eventsId, user.guestsId, dto);
   }
 
+  // Dropdown "Day Slot" di Meeting Setup
+  @Get('agendas')
+  getAgendas(@CurrentUser() user: CurrentVisitor) {
+    return this.appointmentsService.getAgendas(user.eventsId);
+  }
+
+  // Dropdown "Meeting Location" di Meeting Setup
+  @Get('meeting-locations')
+  getMeetingLocations(@CurrentUser() user: CurrentVisitor) {
+    return this.appointmentsService.getMeetingLocations(user.eventsId);
+  }
+
+  // Checkbox "Interest 1/2/dst" di Meeting Setup
+  @Get('interest-options')
+  getInterestOptions(@CurrentUser() user: CurrentVisitor) {
+    return this.appointmentsService.getInterestOptions(user.eventsId);
+  }
+
+  // Dropdown "Time Slot" di Meeting Setup - butuh companyId + agendaId
+  // (slot yang tersedia beda-beda per company per hari)
+  @Get('time-slots')
+  getAvailableTimeSlots(
+    @CurrentUser() user: CurrentVisitor,
+    @Query('companyId', ParseIntPipe) companyId: number,
+    @Query('agendaId', ParseIntPipe) agendaId: number,
+  ) {
+    return this.appointmentsService.getAvailableTimeSlots(user.eventsId, companyId, agendaId);
+  }
+
   // Screen: Appointment List
   @Get()
   list(@CurrentUser() user: CurrentVisitor, @Query() query: AppointmentListQueryDto) {

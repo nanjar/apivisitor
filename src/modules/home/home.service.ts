@@ -8,6 +8,8 @@ import { EventMeeting } from '../appointments/entities/event-meeting.entity';
 import { VenueSpace } from '../venue/entities/venue-space.entity';
 import { LocationAddress } from '../venue/entities/location-address.entity';
 import { BoothResolverService } from '../checkin/booth-resolver.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { RegisterDeviceTokenDto } from '../push-notifications/dto/register-device-token.dto';
 import { mapMeetingApprovalStatus } from '../appointments/meeting-status.util';
 import {
   EventBannerDto,
@@ -29,8 +31,16 @@ export class HomeService {
     @InjectRepository(LocationAddress)
     private readonly locationAddressRepo: Repository<LocationAddress>,
     private readonly boothResolver: BoothResolverService,
+    private readonly pushNotifications: PushNotificationsService,
     private readonly i18n: I18nService,
   ) {}
+
+  // Dipanggil pas Home Dashboard dibuka — register/update FCM device token
+  // visitor ini. Disimpan di visitor_device_token (bukan guests_ticket,
+  // yang ke-overwrite tiap sync MySQL->Postgres jalan).
+  async updateDeviceId(eventsId: number, guestsId: number, dto: RegisterDeviceTokenDto) {
+    return this.pushNotifications.registerDeviceToken(eventsId, guestsId, dto);
+  }
 
   async getDashboard(eventsId: number, guestsId: number): Promise<HomeDashboardResponseDto> {
     const [event, upcomingAppointments, recommendedExhibitors] = await Promise.all([

@@ -3,8 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { ExhibitorProduct } from '../companies/entities/exhibitor-product.entity';
+import { ExhibitorProductHasType } from '../companies/entities/exhibitor-product-has-type.entity';
 import { VisitorCompanyViewLog } from './entities/visitor-company-view-log.entity';
 import { BoothResolverService } from '../checkin/booth-resolver.service';
+import { ProductTypeResolverService } from '../product-types/product-type-resolver.service';
 import { ExploreQueryDto } from './dto/explore-query.dto';
 
 @Injectable()
@@ -19,6 +21,7 @@ export class ExploreService {
     @InjectRepository(VisitorCompanyViewLog)
     private readonly viewLogRepo: Repository<VisitorCompanyViewLog>,
     private readonly boothResolver: BoothResolverService,
+    private readonly productTypeResolver: ProductTypeResolverService,
   ) {}
 
   async search(eventsId: number, query: ExploreQueryDto) {
@@ -119,12 +122,25 @@ export class ExploreService {
     if (query.maxInvestment !== undefined) {
       qb.andWhere('p.investmentFee <= :maxInv', { maxInv: query.maxInvestment });
     }
+    if (query.productTypeId !== undefined) {
+      qb.innerJoin(
+        ExhibitorProductHasType,
+        'pivot',
+        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId = :typeId',
+        { typeId: query.productTypeId },
+      );
+    }
 
     const [items, total] = await qb
       .orderBy('p.created', 'DESC')
       .skip((query.page - 1) * query.limit)
       .take(query.limit)
       .getManyAndCount();
+
+    const productTypeMap = await this.productTypeResolver.resolveForProducts(
+      eventsId,
+      items.map((p) => ({ companyId: p.companyId, productId: p.id })),
+    );
 
     return {
       tab: 'products',
@@ -134,6 +150,7 @@ export class ExploreService {
         productName: p.productName,
         productLogo: p.productLogo,
         investmentFee: p.investmentFee,
+        productTypes: productTypeMap.get(`${p.companyId}-${p.id}`) ?? [],
       })),
       total,
       page: query.page,

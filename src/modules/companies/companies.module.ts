@@ -5,6 +5,7 @@ import { Exhibitor } from './entities/exhibitor.entity';
 import { ExhibitorProduct } from './entities/exhibitor-product.entity';
 import { VisitorCompanyViewLog } from '../explore/entities/visitor-company-view-log.entity';
 import { CheckinModule } from '../checkin/checkin.module';
+import { ProductTypesModule } from '../product-types/product-types.module';
 import { CompaniesController } from './companies.controller';
 import { CompaniesService } from './companies.service';
 
@@ -12,6 +13,7 @@ import { CompaniesService } from './companies.service';
   imports: [
     TypeOrmModule.forFeature([ExhibitorCompany, Exhibitor, ExhibitorProduct, VisitorCompanyViewLog]),
     CheckinModule,
+    ProductTypesModule,
   ],
   controllers: [CompaniesController],
   providers: [CompaniesService],

@@ -6,6 +6,7 @@ import { EventMeeting } from '../appointments/entities/event-meeting.entity';
 import { VenueSpace } from '../venue/entities/venue-space.entity';
 import { LocationAddress } from '../venue/entities/location-address.entity';
 import { CheckinModule } from '../checkin/checkin.module';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { HomeController } from './home.controller';
 import { HomeService } from './home.service';
 
@@ -13,6 +14,7 @@ import { HomeService } from './home.service';
   imports: [
     TypeOrmModule.forFeature([Event, ExhibitorCompany, EventMeeting, VenueSpace, LocationAddress]),
     CheckinModule,
+    PushNotificationsModule,
   ],
   controllers: [HomeController],
   providers: [HomeService],

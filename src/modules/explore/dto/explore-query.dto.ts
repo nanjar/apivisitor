@@ -24,6 +24,12 @@ export class ExploreQueryDto {
   @Min(0)
   maxInvestment?: number;
 
+  // Filter tab Products: product yang punya salah satu product type ini
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  productTypeId?: number;
+
   @IsOptional()
   @IsIn(['companies', 'products', 'categories'])
   tab: 'companies' | 'products' | 'categories' = 'companies';

@@ -44,4 +44,16 @@ export class EventMeeting {
 
   @Column({ name: 'is_done', type: 'varchar', length: 1, default: 'N' })
   isDone: string;
+
+  @Column({ name: 'agenda_id', type: 'int', nullable: true })
+  agendaId: number | null;
+
+  @Column({ name: 'meeting_timeslot', type: 'time', nullable: true })
+  meetingTimeslot: string | null;
+
+  @Column({ name: 'meeting_location', type: 'int', nullable: true })
+  meetingLocation: number | null;
+
+  @Column({ name: 'meeting_score', type: 'varchar', length: 10, nullable: true })
+  meetingScore: string | null;
 }

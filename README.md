@@ -11,23 +11,51 @@ Batch 1 mencakup: **Login, Home Dashboard, Explore**.
 | Login | `POST /api/v1/auth/login` — body `{ "token": "..." }` | `guests_ticket.token` (didapat visitor saat beli tiket) |
 | Login → refresh token | `POST /api/v1/auth/refresh` | JWT refresh token |
 | Home Dashboard | `GET /api/v1/home/dashboard` | `events`, `exhibitor_company`, `events_meeting_v2`, `venue_space` |
+| Home Dashboard - update FCM device token | `PATCH /api/v1/home/device-id` | **DIROMBAK (13 Aug 2026)** — awalnya nulis ke `guests_ticket.device_id`, TERNYATA ke-overwrite tiap sync MySQL jalan (tabel itu di-refresh periodik dari sumber yang gak punya kolom ini). Sekarang nulis ke `visitor_device_token` (tabel independen, gak disentuh sync) via `PushNotificationsService` — endpoint ini alias/convenience dari `POST /push-notifications/device-token`, dipanggil dari context "buka dashboard" |
 | Explore (tab Companies) | `GET /api/v1/explore?tab=companies&keyword=...` | `exhibitor_company` |
 | Explore (tab Products) | `GET /api/v1/explore?tab=products&keyword=...` | `exhibitor_product` |
 | Explore (tab Categories) | `GET /api/v1/explore?tab=categories` | **belum ada tabel** — return kosong sementara |
 | Explore -> Recently Viewed | `GET /api/v1/explore/recently-viewed` | tabel `visitor_company_view_log` (dibuat tim, di luar migration project ini) — **struktur kolom ASUMSI, belum 100% terverifikasi**, lihat catatan di `visitor-company-view-log.entity.ts` |
 | Explore filter investment | `GET /api/v1/explore?minInvestment=&maxInvestment=` | filter company yang punya produk dengan investment_fee di rentang tsb (query `exhibitor_product`) |
+| Product type - filter chip list | `GET /api/v1/products/types` | `product_type` + `exhibitorproduct_has_type` (jumlah produk per type, buat chip "All (24) \| Automation \| IoT \| dst") |
+| Product Search - filter type | `GET /api/v1/products/search?productTypeId=` | — |
+| Product Catalog per company - filter type | `GET /api/v1/companies/:id/products?productTypeId=` | — |
+| Explore tab Products - filter type | `GET /api/v1/explore?tab=products&productTypeId=` | — |
+
+**Bug ditemukan & diperbaiki (31 Jul 2026, dari testing production):** filter
+product type sempat nunjukin data ngaco — 1 produk bisa nunjuk 13 product
+type dari company yang beda-beda (dengan duplikat). Penyebabnya:
+`exhibitor_product.id` (productId) TIDAK unik lintas company (reset per
+company, sama kayak bug composite-key yang pernah ketemu di
+`SpeakersService`/`new_session` sebelumnya) — PK asli
+`exhibitorproduct_has_type` itu `(events_id, company_id, product_id,
+product_type)`, tapi query awal cuma filter `product_id` tanpa
+`company_id`, jadi salah nangkep pivot row company lain yang kebetulan
+productId-nya sama. Diperbaiki dengan: (1) resolver label pakai composite
+key `companyId-productId`, dan (2) filter query utama pakai JOIN langsung
+ke pivot table (match `events_id + company_id + product_id` sekaligus),
+bukan lagi pola fetch-id-dulu-baru-filter.
 | Company Detail | `GET /api/v1/companies/:id` | `exhibitor_company` + `exhibitor` (PIC) + count `exhibitor_product` |
 | Product Catalog | `GET /api/v1/companies/:id/products` | `exhibitor_product` |
 | Product Search | `GET /api/v1/products/search?keyword=...` | `exhibitor_product` join nama company |
 | Product Detail | `GET /api/v1/products/company/:companyId/:productId` | `exhibitor_product` |
-| Appointment Booking | `POST /api/v1/appointments` | `events_meeting_v2` (cek bentrok jadwal per booth) |
+| Appointment Booking | `POST /api/v1/appointments` | **DIROMBAK TOTAL 31 Jul 2026** — sekarang `agenda_id + meeting_timeslot + meeting_location`, bukan lagi `venue_id/space_id` manual + datetime bebas |
+| Appointment Booking - dropdown Day Slot | `GET /api/v1/appointments/agendas` | `new_agenda` |
+| Appointment Booking - dropdown Meeting Location | `GET /api/v1/appointments/meeting-locations` | `meeting_location_v2` |
+| Appointment Booking - dropdown Time Slot | `GET /api/v1/appointments/time-slots?companyId=&agendaId=` | `company_timeslot` (cuma slot `is_enabled='Y'` & `booked='N'`) |
+| Appointment Booking - checkbox Interest | `GET /api/v1/appointments/interest-options` | `interest_options` (dipilih via `interestIds[]` di body booking, disimpan ke pivot `meeting_interest`) |
 | Appointment List | `GET /api/v1/appointments?status=upcoming\|pending\|past\|cancelled\|all` | `events_meeting_v2` + `venue_space` |
 | Appointment cancel | `PATCH /api/v1/appointments/:id/cancel` | `events_meeting_v2` |
 | Chat List | `GET /api/v1/chat/rooms` | `events_chat`, `events_chatmember_v2` |
 | Chat Room (history) | `GET /api/v1/chat/:chatId/messages` | `chat_message` (tabel baru, lihat migration) |
 | Chat Room (kirim pesan) | WebSocket `chat:send` (ns `/chat`), fallback `POST /api/v1/chat/:chatId/messages` | `chat_message` |
 | Event Schedule | `GET /api/v1/schedule` | `new_agenda`, `new_track`, `new_session` |
-| Event Schedule (detail sesi) | `GET /api/v1/schedule/sessions/:id?trackId=&agendaId=` | `new_session`, `session_speaker`, `events_speakers` |
+| Event Schedule (search + filter) | `GET /api/v1/schedule?keyword=&agendaId=&trackId=` | Search lintas NAMA HARI (agenda), NAMA TRACK, dan JUDUL SESI sekaligus — kategori (`session_category`) DIHAPUS (31 Jul 2026), gantiin sama Track |
+| Event Schedule - filter chip Track | `GET /api/v1/schedule/tracks?agendaId=` | `new_track` |
+| Event Schedule (detail sesi) | `GET /api/v1/schedule/sessions/:id?trackId=&agendaId=` | `new_session`, `session_speaker`, `events_speakers` — sekarang sertain `isSaved` |
+| My Schedule | `GET /api/v1/schedule/my-schedule` | tabel baru `visitor_saved_session` |
+| Add to My Schedule | `POST /api/v1/schedule/sessions/:id/save?trackId=&agendaId=` | — |
+| Remove from My Schedule | `DELETE /api/v1/schedule/sessions/:id/save?trackId=&agendaId=` | — |
 | Speaker Detail | `GET /api/v1/speakers/:id` | `events_speakers` (+ kolom baru photo/bio) |
 | Interactive Floor Map | `GET /api/v1/venue/floor-map` | `venue_space` — **lihat gap #6** |
 | Favorites | `GET /api/v1/favorites`, `POST /api/v1/favorites/toggle` | tabel baru `favorite` |
@@ -41,6 +69,69 @@ Batch 1 mencakup: **Login, Home Dashboard, Explore**.
 
 Semua endpoint (kecuali auth) pakai `Authorization: Bearer <accessToken>`.
 WebSocket chat: connect ke `/chat` namespace dengan `auth: { token: '<accessToken>' }`.
+
+## Pelajaran Penting: Jangan Nulis Kolom Baru di Tabel yang Di-sync (13 Aug 2026)
+
+Sempat coba tambah kolom `guests_ticket.device_id` buat nyimpen FCM token
+langsung di tabel visitor — TERNYATA nilainya ke-overwrite balik jadi
+`NULL` tiap kali cron sync MySQL->Postgres jalan, karena `guests_ticket`
+itu tabel yang di-REFRESH PERIODIK dari sumber (MySQL `corp`) yang gak
+kenal kolom `device_id` sama sekali.
+
+**Prinsip ke depan:** APAPUN yang butuh ditulis dari visitor app (bukan
+di-generate dari sync), WAJIB masuk ke tabel independen ber-prefix
+`visitor_*` (`visitor_favorite`, `visitor_notification`, `visitor_settings`,
+`visitor_device_token`, `visitor_saved_session`, dst) — JANGAN PERNAH
+nambah kolom custom ke tabel yang sumbernya dari sync MySQL
+(`guests_ticket`, `exhibitor_company`, `events_meeting_v2`, dst), karena
+bakal ke-timpa balik.
+
+Migration `1732870000000` (nambah kolom) langsung di-revert lewat
+`1732880000000`. FCM device token sekarang 100% lewat `visitor_device_token`
+(`PushNotificationsService`) yang emang udah didesain independen dari awal.
+
+**Field `platform` WAJIB sesuai device asli** — isi `"ios"` kalau dari
+iPhone/iPad, isi `"android"` kalau dari device Android. Ini bukan sekadar
+metadata, dipakai buat nentuin format payload notifikasi yang benar (APNs
+vs FCM Android) pas backend kirim push nanti. Deskripsi ini juga udah
+ditambahin ke `@ApiProperty` di `RegisterDeviceTokenDto`, jadi otomatis
+muncul di Swagger UI (`/api/docs`).
+
+## BUG KRITIS: Data Leak Lintas Event di Search (4 Aug 2026)
+
+**Ditemukan dari testing production** — `SearchService` (Universal Search)
+dan `AssistantService` (AI Assistant RAG) sempat punya bug SQL klasik:
+kondisi keyword `OR` yang di-generate manual via `.join(' OR ')` **TIDAK
+dibungkus kurung** sebelum digabung ke `.andWhere()`.
+
+**Kenapa ini bahaya:** SQL `AND` punya precedence lebih tinggi dari `OR`.
+```sql
+-- Yang dimaksud:
+WHERE eventsId = X AND (topic ILIKE kw0 OR topic ILIKE kw1 OR topic ILIKE kw2)
+
+-- Yang BENERAN kejadian tanpa kurung:
+WHERE eventsId = X AND topic ILIKE kw0 OR topic ILIKE kw1 OR topic ILIKE kw2
+-- ke-parse jadi:
+WHERE (eventsId = X AND topic ILIKE kw0) OR topic ILIKE kw1 OR topic ILIKE kw2
+```
+Filter `eventsId` cuma nempel ke keyword PERTAMA — keyword ke-2 dst bocor
+nyari ke **SEMUA event**, bukan cuma event visitor yang login. Baru
+kena pas query di-parse Ollama jadi >1 keyword (mayoritas query natural
+language emang gitu) — makanya ke-detect telat, testing awal pakai
+1 keyword doang ("sesi") kebetulan gak nunjukin bug-nya.
+
+**Fix:** semua `buildKeywordClause`/OR-clause manual sekarang WAJIB
+dibungkus `(...)`. Sudah diperbaiki di:
+- `SearchService.buildKeywordClause` (dipakai 4 fungsi: companies/products/sessions/speakers)
+- `AssistantService.findRelevantCompanies` (RAG context buat AI Assistant)
+
+Sudah di-cross-check ke seluruh codebase (`grep` semua pola OR manual) —
+tempat lain (`NotificationsService`, `ProductsService`, `ScheduleService`)
+sudah benar dari awal, gak kena bug ini.
+
+**Pelajaran buat ke depan:** kalau bikin OR-clause manual sebagai raw SQL
+string yang bakal digabung via `.andWhere()`, WAJIB bungkus kurung
+eksplisit — jangan asumsikan TypeORM otomatis nge-wrap.
 
 ## Typing Indicator & Push Notification (31 Jul 2026)
 
@@ -311,6 +402,57 @@ AI Exhibitor Recommendation, Visitor Analytics. Semua pakai Ollama lokal
     kejadian, tambahkan instruksi eksplisit "jangan tampilkan proses
     berpikir" di prompt, atau pertimbangkan set parameter Ollama
     `think: false` kalau tersedia di versi Ollama kamu.
+
+## Appointment Booking — Alur Baru (31 Jul 2026)
+
+Dirombak total dari `venue_id`/`space_id` manual jadi `agenda_id` +
+`meeting_timeslot` + `meeting_location`, sesuai screen "Meeting Setup" yang
+sebenarnya. Detail:
+
+**Request body `POST /appointments` sekarang:**
+```json
+{
+  "companyId": 1,
+  "agendaId": 1,
+  "timeSlot": "09:00",
+  "meetingLocationId": 1,
+  "leadTemperature": "Cold",
+  "notes": "opsional"
+}
+```
+
+**Alur validasi:**
+1. Cek `agenda_id` valid & punya tanggal
+2. Cek `meeting_location_id` valid & aktif
+3. Cek slot `(companyId, agendaId, timeSlot)` di `company_timeslot` masih
+   `is_enabled='Y'` DAN `booked='N'` (dikunci pakai Postgres advisory lock
+   biar gak race condition kalau 2 visitor rebutan slot sama-sama)
+4. Booth company (`venue_id`/`space_id` di `events_meeting_v2`) di-resolve
+   OTOMATIS dari `exhcompany_space` — visitor gak perlu milih ini manual
+5. Slot ditandai `booked='Y'`, insert `events_meeting_v2`
+6. **Cancel otomatis lepas slot lagi** (`booked='N'`) biar bisa diambil
+   visitor lain
+
+**Gap/asumsi yang perlu dikonfirmasi:**
+
+20. **Durasi meeting di-hardcode 45 menit** (`MEETING_DURATION_MINUTES` di
+    `appointments.service.ts`). Gak ada kolom durasi eksplisit di skema
+    (`company_timeslot` cuma titik waktu mulai per 15 menit) — perlu
+    dikonfirmasi apakah 45 menit itu bener sesuai kebijakan event, atau
+    harusnya beda (30/60 menit, atau dinamis dari selisih slot berikutnya).
+
+21. ~~"Interest 1"/"Interest 2" checkbox BELUM diimplementasikan~~
+    **Sudah diselesaikan (31 Jul 2026)** — ternyata ada tabel resmi
+    `interest_options` (daftar pilihan) + pivot `meeting_interest`
+    (many-to-many ke meeting). `interest_options.interest_for` disimpan
+    tapi BELUM dipakai buat filter (belum jelas semantiknya persis FK ke
+    apa) — kalau ternyata itu perlu buat scoping per company/kategori,
+    kasih tau, saya tambahin filternya.
+
+22. **`leadTemperature` (Cold/Warm/Hot) disimpan ke `meeting_score`** —
+    asumsi kolom yang tepat berdasar nama & tipe (`varchar(10)`), tapi
+    belum ada konfirmasi apakah value yang diterima sistem lain persis
+    string `"Cold"/"Warm"/"Hot"` atau format lain (mis. angka 1/2/3).
 
 ## i18n — Support Bahasa Indonesia & English (30 Jul 2026)
 

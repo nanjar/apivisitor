@@ -24,7 +24,14 @@ export class CompaniesController {
     @Param('id', ParseIntPipe) id: number,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('productTypeId') productTypeId?: string,
   ) {
-    return this.companiesService.getProducts(user.eventsId, id, Number(page) || 1, Number(limit) || 20);
+    return this.companiesService.getProducts(
+      user.eventsId,
+      id,
+      Number(page) || 1,
+      Number(limit) || 20,
+      productTypeId !== undefined ? Number(productTypeId) : undefined,
+    );
   }
 }

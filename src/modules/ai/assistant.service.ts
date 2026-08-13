@@ -100,7 +100,11 @@ Kalau kamu tidak tahu jawabannya, katakan terus terang — jangan mengarang info
       .where('c.eventsId = :eventsId', { eventsId })
       .andWhere('c.approvalStatus = :status', { status: 'AP' })
       .andWhere(
-        words.map((_, i) => `c.companyName ILIKE :w${i}`).join(' OR '),
+        // WAJIB dibungkus kurung — tanpa ini, filter eventsId/approvalStatus
+        // di atas cuma nempel ke word pertama (AND lebih erat dari OR di
+        // SQL), word lain bocor nyari ke SEMUA event. Bug yang sama kayak
+        // ketemu di SearchService, diperbaiki bareng (4 Aug 2026).
+        `(${words.map((_, i) => `c.companyName ILIKE :w${i}`).join(' OR ')})`,
         Object.fromEntries(words.map((w, i) => [`w${i}`, `%${w}%`])),
       )
       .take(5);

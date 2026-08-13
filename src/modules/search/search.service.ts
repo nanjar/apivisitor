@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { ExhibitorProduct } from '../companies/entities/exhibitor-product.entity';
 import { Session } from '../schedule/entities/session.entity';
+import { Agenda } from '../schedule/entities/agenda.entity';
 import { EventSpeaker } from '../speakers/entities/event-speaker.entity';
 import { OllamaService, OllamaUnavailableError } from '../ai/ollama.service';
 
@@ -24,6 +25,7 @@ export class SearchService {
     @InjectRepository(ExhibitorProduct)
     private readonly productRepo: Repository<ExhibitorProduct>,
     @InjectRepository(Session) private readonly sessionRepo: Repository<Session>,
+    @InjectRepository(Agenda) private readonly agendaRepo: Repository<Agenda>,
     @InjectRepository(EventSpeaker) private readonly speakerRepo: Repository<EventSpeaker>,
     private readonly ollama: OllamaService,
   ) {}
@@ -128,12 +130,29 @@ Format output: {"entityTypes": ["companies"], "keywords": ["kata1", "kata2"]}`,
       .andWhere(this.buildKeywordClause('s.sessionTopic', keywords), this.buildKeywordParams(keywords))
       .take(10);
     const items = await qb.getMany();
-    return items.map((s) => ({
-      sessionId: s.id,
-      trackId: s.trackId,
-      agendaId: s.agendaId,
-      topic: s.sessionTopic,
-    }));
+
+    const agendaIds = [...new Set(items.map((s) => s.agendaId))];
+    const agendas = agendaIds.length
+      ? await this.agendaRepo
+          .createQueryBuilder('a')
+          .where('a.eventsId = :eventsId', { eventsId })
+          .andWhere('a.id IN (:...ids)', { ids: agendaIds })
+          .getMany()
+      : [];
+    const agendaMap = new Map(agendas.map((a) => [a.id, a]));
+
+    return items.map((s) => {
+      const agenda = agendaMap.get(s.agendaId);
+      return {
+        sessionId: s.id,
+        trackId: s.trackId,
+        agendaId: s.agendaId,
+        topic: s.sessionTopic,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        dayLabel: agenda?.aliasName ?? agenda?.agendaName ?? null,
+      };
+    });
   }
 
   private async searchSpeakers(eventsId: number, keywords: string[]) {
@@ -147,7 +166,13 @@ Format output: {"entityTypes": ["companies"], "keywords": ["kata1", "kata2"]}`,
   }
 
   private buildKeywordClause(column: string, keywords: string[]): string {
-    return keywords.map((_, i) => `${column} ILIKE :kw${i}`).join(' OR ');
+    // PENTING: HARUS dibungkus kurung! Tanpa ini, `AND eventsId=X AND kw0 OR
+    // kw1 OR kw2` ke-parse SQL jadi `(eventsId=X AND kw0) OR kw1 OR kw2`
+    // (AND lebih erat dari OR) — filter eventsId cuma nempel ke keyword
+    // pertama, keyword lain bocor nyari ke SEMUA event. Bug nyata yang
+    // ketemu 4 Aug 2026 dari testing production (search leak data lintas
+    // event pas query di-parse jadi >1 keyword oleh Ollama).
+    return `(${keywords.map((_, i) => `${column} ILIKE :kw${i}`).join(' OR ')})`;
   }
 
   private buildKeywordParams(keywords: string[]): Record<string, string> {
