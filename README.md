@@ -38,7 +38,7 @@ bukan lagi pola fetch-id-dulu-baru-filter.
 | Company Detail | `GET /api/v1/companies/:id` | `exhibitor_company` + `exhibitor` (PIC) + count `exhibitor_product` |
 | Product Catalog | `GET /api/v1/companies/:id/products` | `exhibitor_product` |
 | Product Search | `GET /api/v1/products/search?keyword=...` | `exhibitor_product` join nama company |
-| Product Detail | `GET /api/v1/products/company/:companyId/:productId` | `exhibitor_product` |
+| Product Detail | `GET /api/v1/products/company/:companyId/:productId` | `exhibitor_product` — sekarang sertain `websiteUrl` (`product_url`), `promoUrl`, `instagram`, `facebookUrl`, `tiktokUrl`, `twitterUrl` (kolom yang udah ada dari awal, sebelumnya belum di-map ke entity) |
 | Appointment Booking | `POST /api/v1/appointments` | **DIROMBAK TOTAL 31 Jul 2026** — sekarang `agenda_id + meeting_timeslot + meeting_location`, bukan lagi `venue_id/space_id` manual + datetime bebas |
 | Appointment Booking - dropdown Day Slot | `GET /api/v1/appointments/agendas` | `new_agenda` |
 | Appointment Booking - dropdown Meeting Location | `GET /api/v1/appointments/meeting-locations` | `meeting_location_v2` |

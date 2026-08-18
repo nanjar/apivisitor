@@ -107,6 +107,12 @@ export class ProductsService {
       productDescription: product.productDescription,
       investmentFee: product.investmentFee,
       brochure: product.brochure,
+      websiteUrl: product.websiteUrl,
+      promoUrl: product.promoUrl,
+      instagram: product.instagram,
+      facebookUrl: product.facebookUrl,
+      tiktokUrl: product.tiktokUrl,
+      twitterUrl: product.twitterUrl,
       productTypes: productTypeMap.get(`${companyId}-${productId}`) ?? [],
     };
   }

@@ -1,0 +1,4 @@
+# Normalisasi line ending: semua text file disimpen LF di repo,
+# git otomatis convert ke CRLF pas checkout di Windows (dan balik lagi
+# ke LF pas commit) — biar gak ada lagi warning "LF will be replaced by CRLF".
+* text=auto
