@@ -13,12 +13,13 @@ export class RegisterDeviceTokenDto {
 
   @ApiProperty({
     description:
-      "Isi 'ios' kalau device-nya iPhone/iPad, isi 'android' kalau device-nya Android. " +
-      'Wajib sesuai platform ASLI device pengirim — dipakai buat nentuin format payload ' +
-      'push notification yang benar (APNs vs FCM Android), BUKAN sekadar metadata.',
-    enum: ['ios', 'android'],
+      "Isi 'ios' kalau device-nya iPhone/iPad, isi 'android' kalau device-nya Android, " +
+      "isi 'web' kalau dari browser (FCM Web Push). Wajib sesuai platform ASLI device " +
+      'pengirim — dipakai buat nentuin format payload push notification yang benar ' +
+      '(APNs vs FCM Android vs Web Push), BUKAN sekadar metadata.',
+    enum: ['ios', 'android', 'web'],
     example: 'android',
   })
-  @IsIn(['ios', 'android'])
-  platform: 'ios' | 'android';
+  @IsIn(['ios', 'android', 'web'])
+  platform: 'ios' | 'android' | 'web';
 }

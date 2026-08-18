@@ -15,7 +15,7 @@ export class VisitorDeviceToken {
   deviceToken: string;
 
   @Column({ name: 'platform', type: 'varchar', length: 10, default: 'unknown' })
-  platform: 'ios' | 'android' | 'unknown';
+  platform: 'ios' | 'android' | 'web' | 'unknown';
 
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
