@@ -14,7 +14,7 @@ export class ExploreController {
 
   @Get()
   search(@CurrentUser() user: CurrentVisitor, @Query() query: ExploreQueryDto) {
-    return this.exploreService.search(user.eventsId, query);
+    return this.exploreService.search(user.eventsId, user.guestsId, query);
   }
 
   // Screen: Explore -> "Recently Viewed" section

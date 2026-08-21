@@ -1,5 +1,11 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
+/**
+ * Favorite COMPANY -> companyId diisi, productId NULL.
+ * Favorite PRODUCT -> companyId diisi (company pemilik produk), productId
+ * diisi. WAJIB pasangan companyId+productId (bukan productId doang) karena
+ * product_id gak unik lintas company (reset per company).
+ */
 @Entity('visitor_favorite')
 export class Favorite {
   @PrimaryGeneratedColumn()
@@ -11,11 +17,11 @@ export class Favorite {
   @Column({ name: 'guests_id', type: 'int' })
   guestsId: number;
 
-  @Column({ name: 'target_type', type: 'varchar', length: 10 })
-  targetType: 'COMPANY' | 'PRODUCT';
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
-  @Column({ name: 'target_id', type: 'int' })
-  targetId: number;
+  @Column({ name: 'product_id', type: 'int', nullable: true })
+  productId: number | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;

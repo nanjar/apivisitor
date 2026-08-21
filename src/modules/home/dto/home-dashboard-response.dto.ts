@@ -12,6 +12,9 @@ export class UpcomingAppointmentDto {
   meetingTitle: string | null;
   startDatetime: Date | null;
   status: string;
+  companyId: number | null;
+  companyName: string | null;
+  companyLogo: string | null;
   venueName: string | null;
   hallLabel: string | null;
   boothLabel: string | null;

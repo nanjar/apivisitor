@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { ExhibitorProduct } from '../companies/entities/exhibitor-product.entity';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { ExhibitorProductHasType } from '../companies/entities/exhibitor-product-has-type.entity';
+import { Favorite } from '../favorites/entities/favorite.entity';
 import { ProductTypeResolverService } from '../product-types/product-type-resolver.service';
 import { ProductSearchQueryDto } from './dto/product-search-query.dto';
 
@@ -15,6 +16,8 @@ export class ProductsService {
     private readonly productRepo: Repository<ExhibitorProduct>,
     @InjectRepository(ExhibitorCompany)
     private readonly companyRepo: Repository<ExhibitorCompany>,
+    @InjectRepository(Favorite)
+    private readonly favoriteRepo: Repository<Favorite>,
     private readonly productTypeResolver: ProductTypeResolverService,
     private readonly i18n: I18nService,
   ) {}
@@ -35,13 +38,13 @@ export class ProductsService {
     // JOIN langsung ke pivot table (bukan fetch-id-dulu) — WAJIB match
     // events_id + company_id + product_id sekaligus karena product_id
     // gak unik lintas company (lihat catatan di ProductTypeResolverService).
-    if (query.productTypeId !== undefined) {
+    if (query.productTypeId?.length) {
       qb.innerJoin(
         ExhibitorProductHasType,
         'pivot',
-        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId = :typeId',
-        { typeId: query.productTypeId },
-      );
+        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId IN (:...typeIds)',
+        { typeIds: query.productTypeId },
+      ).distinct(true); // produk yang match >1 type gak boleh muncul dobel gara-gara JOIN
     }
 
     const [items, total] = await qb
@@ -87,7 +90,7 @@ export class ProductsService {
   }
 
   // Detail satu produk (dibuka dari Product Catalog / Product Search)
-  async getDetail(eventsId: number, companyId: number, productId: number) {
+  async getDetail(eventsId: number, companyId: number, productId: number, guestsId?: number) {
     const product = await this.productRepo.findOne({
       where: { eventsId, companyId, id: productId },
     });
@@ -95,8 +98,11 @@ export class ProductsService {
       throw new NotFoundException(this.i18n.t('messages.errors.productNotFound'));
     }
 
-    const productTypeMap = await this.productTypeResolver.resolveForProducts(eventsId, [
-      { companyId, productId },
+    const [productTypeMap, favorite] = await Promise.all([
+      this.productTypeResolver.resolveForProducts(eventsId, [{ companyId, productId }]),
+      guestsId
+        ? this.favoriteRepo.findOne({ where: { eventsId, guestsId, companyId, productId } })
+        : Promise.resolve(null),
     ]);
 
     return {
@@ -113,6 +119,7 @@ export class ProductsService {
       facebookUrl: product.facebookUrl,
       tiktokUrl: product.tiktokUrl,
       twitterUrl: product.twitterUrl,
+      isFavorited: !!favorite,
       productTypes: productTypeMap.get(`${companyId}-${productId}`) ?? [],
     };
   }

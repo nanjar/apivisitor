@@ -7,6 +7,7 @@ import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity
 import { EventMeeting } from '../appointments/entities/event-meeting.entity';
 import { VenueSpace } from '../venue/entities/venue-space.entity';
 import { LocationAddress } from '../venue/entities/location-address.entity';
+import { ExhCompanySpace } from '../venue/entities/exh-company-space.entity';
 import { BoothResolverService } from '../checkin/booth-resolver.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { RegisterDeviceTokenDto } from '../push-notifications/dto/register-device-token.dto';
@@ -30,6 +31,8 @@ export class HomeService {
     private readonly venueSpaceRepo: Repository<VenueSpace>,
     @InjectRepository(LocationAddress)
     private readonly locationAddressRepo: Repository<LocationAddress>,
+    @InjectRepository(ExhCompanySpace)
+    private readonly exhCompanySpaceRepo: Repository<ExhCompanySpace>,
     private readonly boothResolver: BoothResolverService,
     private readonly pushNotifications: PushNotificationsService,
     private readonly i18n: I18nService,
@@ -87,7 +90,7 @@ export class HomeService {
 
     const results: UpcomingAppointmentDto[] = [];
     for (const meeting of meetings) {
-      const [space, venue] = await Promise.all([
+      const [space, venue, companyLink] = await Promise.all([
         meeting.spaceId
           ? this.venueSpaceRepo
               .findOne({ where: { id: meeting.spaceId, venueId: meeting.venueId, eventsId } })
@@ -98,13 +101,30 @@ export class HomeService {
               .findOne({ where: { venueId: meeting.venueId, eventsId } })
               .catch(() => null)
           : Promise.resolve(null),
+        // Resolve company dari booth (venue_id+space_id) — events_meeting_v2
+        // gak punya company_id langsung, sama pola kayak di
+        // AppointmentsService.cancel() buat release timeslot.
+        meeting.venueId && meeting.spaceId
+          ? this.exhCompanySpaceRepo
+              .findOne({ where: { eventsId, venueId: meeting.venueId, spaceId: meeting.spaceId } })
+              .catch(() => null)
+          : Promise.resolve(null),
       ]);
+
+      const company = companyLink
+        ? await this.companyRepo
+            .findOne({ where: { eventsId, id: companyLink.companyId } })
+            .catch(() => null)
+        : null;
 
       results.push({
         id: meeting.id,
         meetingTitle: meeting.meetingTitle,
         startDatetime: meeting.startDatetime,
         status: mapMeetingApprovalStatus(this.i18n, meeting.approvalStatus),
+        companyId: company?.id ?? null,
+        companyName: company?.companyName ?? null,
+        companyLogo: company?.logo ?? null,
         venueName: venue?.venueName || null,
         hallLabel: space?.spaceType === 'BO' ? space.spaceName : null,
         boothLabel: space?.spaceDetails ?? null,

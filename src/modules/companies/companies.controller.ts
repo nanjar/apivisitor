@@ -24,14 +24,19 @@ export class CompaniesController {
     @Param('id', ParseIntPipe) id: number,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('productTypeId') productTypeId?: string,
+    // Bisa 1 nilai (?productTypeId=1) atau banyak (?productTypeId=1&productTypeId=2)
+    // — Express otomatis kasih array kalau query key-nya diulang.
+    @Query('productTypeId') productTypeId?: string | string[],
   ) {
+    const productTypeIds = productTypeId
+      ? (Array.isArray(productTypeId) ? productTypeId : [productTypeId]).map(Number)
+      : undefined;
     return this.companiesService.getProducts(
       user.eventsId,
       id,
       Number(page) || 1,
       Number(limit) || 20,
-      productTypeId !== undefined ? Number(productTypeId) : undefined,
+      productTypeIds,
     );
   }
 }

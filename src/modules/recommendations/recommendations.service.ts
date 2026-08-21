@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { GuestTicket } from '../visitors/entities/guest-ticket.entity';
 import { Favorite } from '../favorites/entities/favorite.entity';
@@ -125,8 +125,8 @@ Format output: {"recommendations": [{"companyId": 1, "reason": "alasan singkat 1
 
   private async getFavoriteCompanyIds(eventsId: number, guestsId: number): Promise<number[]> {
     const favorites = await this.favoriteRepo.find({
-      where: { eventsId, guestsId, targetType: 'COMPANY' },
+      where: { eventsId, guestsId, productId: IsNull() },
     });
-    return favorites.map((f) => f.targetId);
+    return favorites.map((f) => f.companyId);
   }
 }

@@ -1,9 +1,16 @@
-import { IsIn, IsInt } from 'class-validator';
+import { IsInt, IsOptional, Min } from 'class-validator';
 
 export class ToggleFavoriteDto {
-  @IsIn(['COMPANY', 'PRODUCT'])
-  targetType: 'COMPANY' | 'PRODUCT';
-
+  // Wajib diisi buat SEMUA favorite (company favorite = companyId itu
+  // sendiri; product favorite = company PEMILIK produknya).
   @IsInt()
-  targetId: number;
+  @Min(1)
+  companyId: number;
+
+  // Kosongin (undefined/null) kalau favorite-nya buat COMPANY. Isi kalau
+  // favorite-nya buat PRODUCT spesifik.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  productId?: number;
 }

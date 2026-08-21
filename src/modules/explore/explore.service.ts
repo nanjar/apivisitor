@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { ExhibitorProduct } from '../companies/entities/exhibitor-product.entity';
 import { ExhibitorProductHasType } from '../companies/entities/exhibitor-product-has-type.entity';
 import { VisitorCompanyViewLog } from './entities/visitor-company-view-log.entity';
+import { Favorite } from '../favorites/entities/favorite.entity';
 import { BoothResolverService } from '../checkin/booth-resolver.service';
 import { ProductTypeResolverService } from '../product-types/product-type-resolver.service';
 import { ExploreQueryDto } from './dto/explore-query.dto';
@@ -20,11 +21,13 @@ export class ExploreService {
     private readonly productRepo: Repository<ExhibitorProduct>,
     @InjectRepository(VisitorCompanyViewLog)
     private readonly viewLogRepo: Repository<VisitorCompanyViewLog>,
+    @InjectRepository(Favorite)
+    private readonly favoriteRepo: Repository<Favorite>,
     private readonly boothResolver: BoothResolverService,
     private readonly productTypeResolver: ProductTypeResolverService,
   ) {}
 
-  async search(eventsId: number, query: ExploreQueryDto) {
+  async search(eventsId: number, guestsId: number, query: ExploreQueryDto) {
     if (query.tab === 'products') {
       return this.searchProducts(eventsId, query);
     }
@@ -34,10 +37,24 @@ export class ExploreService {
       // hasilnya kosong sampai tabel kategori tersedia.
       return { tab: 'categories', items: [], total: 0, page: query.page, limit: query.limit };
     }
-    return this.searchCompanies(eventsId, query);
+    return this.searchCompanies(eventsId, guestsId, query);
   }
 
-  private async searchCompanies(eventsId: number, query: ExploreQueryDto) {
+  // Batch-friendly: ambil set company_id yang di-favorite visitor ini
+  // (company favorite = product_id NULL) buat nandain isFavorited tanpa N+1.
+  private async getFavoritedCompanyIds(
+    eventsId: number,
+    guestsId: number,
+    companyIds: number[],
+  ): Promise<Set<number>> {
+    if (!companyIds.length) return new Set();
+    const favorites = await this.favoriteRepo.find({
+      where: { eventsId, guestsId, companyId: In(companyIds), productId: IsNull() },
+    });
+    return new Set(favorites.map((f) => f.companyId));
+  }
+
+  private async searchCompanies(eventsId: number, guestsId: number, query: ExploreQueryDto) {
     // Filter investment: company harus punya minimal 1 produk dengan
     // investment_fee di rentang yang diminta. Query terpisah dulu buat
     // dapetin daftar company_id yang match, baru dipakai buat filter utama
@@ -86,6 +103,7 @@ export class ExploreService {
       .getManyAndCount();
 
     const boothMap = await this.boothResolver.resolveMany(eventsId, items.map((c) => c.id));
+    const favoritedIds = await this.getFavoritedCompanyIds(eventsId, guestsId, items.map((c) => c.id));
 
     return {
       tab: 'companies',
@@ -99,6 +117,7 @@ export class ExploreService {
           venueName: booth?.venueName ?? null,
           hallLabel: booth?.hallLabel ?? null,
           boothLabel: booth?.boothLabel ?? null,
+          isFavorited: favoritedIds.has(c.id),
         };
       }),
       total,
@@ -122,13 +141,13 @@ export class ExploreService {
     if (query.maxInvestment !== undefined) {
       qb.andWhere('p.investmentFee <= :maxInv', { maxInv: query.maxInvestment });
     }
-    if (query.productTypeId !== undefined) {
+    if (query.productTypeId?.length) {
       qb.innerJoin(
         ExhibitorProductHasType,
         'pivot',
-        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId = :typeId',
-        { typeId: query.productTypeId },
-      );
+        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId IN (:...typeIds)',
+        { typeIds: query.productTypeId },
+      ).distinct(true); // produk yang match >1 type gak boleh muncul dobel gara-gara JOIN
     }
 
     const [items, total] = await qb

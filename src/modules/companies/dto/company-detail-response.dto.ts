@@ -17,6 +17,7 @@ export class CompanyDetailResponseDto {
   venueName: string | null;
   hallLabel: string | null;
   boothLabel: string | null;
+  isFavorited: boolean;
   pics: CompanyPicDto[];
   totalProducts: number;
 }

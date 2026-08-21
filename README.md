@@ -10,7 +10,7 @@ Batch 1 mencakup: **Login, Home Dashboard, Explore**.
 |---|---|---|
 | Login | `POST /api/v1/auth/login` — body `{ "token": "..." }` | `guests_ticket.token` (didapat visitor saat beli tiket) |
 | Login → refresh token | `POST /api/v1/auth/refresh` | JWT refresh token |
-| Home Dashboard | `GET /api/v1/home/dashboard` | `events`, `exhibitor_company`, `events_meeting_v2`, `venue_space` |
+| Home Dashboard | `GET /api/v1/home/dashboard` | `events`, `exhibitor_company`, `events_meeting_v2`, `venue_space` — `upcomingAppointments` sekarang sertain `companyId`/`companyName`/`companyLogo` (resolve dari `exhcompany_space` via venue_id+space_id, 19 Aug 2026) |
 | Home Dashboard - update FCM device token | `PATCH /api/v1/home/device-id` | **DIROMBAK (13 Aug 2026)** — awalnya nulis ke `guests_ticket.device_id`, TERNYATA ke-overwrite tiap sync MySQL jalan (tabel itu di-refresh periodik dari sumber yang gak punya kolom ini). Sekarang nulis ke `visitor_device_token` (tabel independen, gak disentuh sync) via `PushNotificationsService` — endpoint ini alias/convenience dari `POST /push-notifications/device-token`, dipanggil dari context "buka dashboard" |
 | Explore (tab Companies) | `GET /api/v1/explore?tab=companies&keyword=...` | `exhibitor_company` |
 | Explore (tab Products) | `GET /api/v1/explore?tab=products&keyword=...` | `exhibitor_product` |
@@ -18,9 +18,9 @@ Batch 1 mencakup: **Login, Home Dashboard, Explore**.
 | Explore -> Recently Viewed | `GET /api/v1/explore/recently-viewed` | tabel `visitor_company_view_log` (dibuat tim, di luar migration project ini) — **struktur kolom ASUMSI, belum 100% terverifikasi**, lihat catatan di `visitor-company-view-log.entity.ts` |
 | Explore filter investment | `GET /api/v1/explore?minInvestment=&maxInvestment=` | filter company yang punya produk dengan investment_fee di rentang tsb (query `exhibitor_product`) |
 | Product type - filter chip list | `GET /api/v1/products/types` | `product_type` + `exhibitorproduct_has_type` (jumlah produk per type, buat chip "All (24) \| Automation \| IoT \| dst") |
-| Product Search - filter type | `GET /api/v1/products/search?productTypeId=` | — |
-| Product Catalog per company - filter type | `GET /api/v1/companies/:id/products?productTypeId=` | — |
-| Explore tab Products - filter type | `GET /api/v1/explore?tab=products&productTypeId=` | — |
+| Product Search - filter type | `GET /api/v1/products/search?productTypeId=1&productTypeId=2` | **Diubah jadi array (18 Aug 2026)** — bisa filter beberapa type sekaligus (OR, produk yang punya SALAH SATU dari type yang diminta) |
+| Product Catalog per company - filter type | `GET /api/v1/companies/:id/products?productTypeId=1&productTypeId=2` | Sama, array |
+| Explore tab Products - filter type | `GET /api/v1/explore?tab=products&productTypeId=1&productTypeId=2` | Sama, array |
 
 **Bug ditemukan & diperbaiki (31 Jul 2026, dari testing production):** filter
 product type sempat nunjukin data ngaco — 1 produk bisa nunjuk 13 product
@@ -58,7 +58,7 @@ bukan lagi pola fetch-id-dulu-baru-filter.
 | Remove from My Schedule | `DELETE /api/v1/schedule/sessions/:id/save?trackId=&agendaId=` | — |
 | Speaker Detail | `GET /api/v1/speakers/:id` | `events_speakers` (+ kolom baru photo/bio) |
 | Interactive Floor Map | `GET /api/v1/venue/floor-map` | `venue_space` — **lihat gap #6** |
-| Favorites | `GET /api/v1/favorites`, `POST /api/v1/favorites/toggle` | tabel baru `favorite` |
+| Favorites | `GET /api/v1/favorites`, `POST /api/v1/favorites/toggle` | tabel `visitor_favorite` — **DIROMBAK (19 Aug 2026)**: dari `target_type`/`target_id` polymorphic jadi `company_id` + `product_id` eksplisit (`product_id` gak unik lintas company, jadi WAJIB pasangan sama `company_id`) |
 | Notifications | `GET /api/v1/notifications`, `GET /api/v1/notifications/unread-count`, `PATCH /api/v1/notifications/:id/read` | tabel baru `notification` |
 | Facilities | `GET /api/v1/facilities` | tabel baru `facility` |
 | QR Badge | `GET /api/v1/badge`, `GET /api/v1/badge/checkin-history` | `guests_ticket.token` + `checkin_booth` |
@@ -69,6 +69,91 @@ bukan lagi pola fetch-id-dulu-baru-filter.
 
 Semua endpoint (kecuali auth) pakai `Authorization: Bearer <accessToken>`.
 WebSocket chat: connect ke `/chat` namespace dengan `auth: { token: '<accessToken>' }`.
+
+## Format Tanggal Global: dd/mm/yyyy & dd/mm/yyyy H:i:s (19 Aug 2026)
+
+Semua field bertipe `Date` di response API (SELURUH endpoint, otomatis)
+sekarang diformat jadi string, bukan lagi ISO 8601 mentah
+(`2026-08-19T07:56:12.687Z`). Diimplementasi via 1 global interceptor
+(`DateFormatInterceptor`, `src/common/interceptors/`), BUKAN diubah manual
+di tiap DTO/service — biar konsisten otomatis di semua endpoint tanpa
+resiko ada yang kelewat.
+
+**Aturan format** (ditentukan dari NAMA FIELD, bukan tipe data):
+- Field diakhiri persis `Date` (mis. `startDate`, `endDate`, `agendaDate`)
+  → `dd/mm/yyyy` (contoh: `19/08/2026`)
+- Field lain yang isinya `Date` (`startDatetime`, `endDatetime`,
+  `createdAt`, `updatedAt`, `viewedAt`, `checkinDatetime`, `lastUpdate`,
+  dst) → `dd/mm/yyyy H:i:s` (contoh: `19/08/2026 14:30:00`)
+
+**Timezone: di-hardcode `Asia/Jakarta` (WIB)**, TERLEPAS dari timezone OS
+server. Ini asumsi — perlu dikonfirmasi apakah semua event emang di WIB,
+atau butuh timezone dinamis (WITA/WIT/timezone visitor). Kalau butuh
+dinamis, kasih tau, perlu desain ulang (gak bisa 1 nilai fix buat semua
+orang).
+
+**Gap yang perlu diketahui:** interceptor ini cuma jalan buat response
+REST (HTTP), **BELUM** kepakai buat broadcast WebSocket chat
+(`ChatGateway.handleSend` emit langsung ke `server.to(room).emit(...)`,
+gak lewat interceptor pipeline). Jadi `createdAt` di pesan chat yang
+di-broadcast real-time ke room masih format ISO mentah, sementara respons
+REST (`GET /chat/:chatId/messages`) udah ke-format. Perlu diperbaiki
+manual di gateway kalau mau konsisten — belum dikerjain karena nunggu
+konfirmasi prioritas.
+
+Kalau ada endpoint yang nambah field baru berisi Date, WAJIB ikutin
+konvensi penamaan di atas (akhiran persis `Date` = date-only) biar
+ke-format otomatis dengan benar tanpa perlu ubah kode interceptor-nya.
+
+## isFavorited Ditambahkan di 3 Endpoint (20 Aug 2026)
+
+Biar FE bisa nampilin ikon hati terisi/kosong tanpa perlu query terpisah
+ke `/favorites`, field `isFavorited` (boolean) sekarang otomatis nempel di:
+
+- `GET /explore?tab=companies` — tiap item company
+- `GET /companies/:id` — Company Detail
+- `GET /products/company/:companyId/:productId` — Product Detail
+
+Semua resolve dari tabel `visitor_favorite` yang udah dirombak
+(company_id + product_id eksplisit). Kalau request tanpa autentikasi
+(secara teknis gak mungkin karena semua endpoint ini udah di-guard JWT,
+tapi sebagai fallback) — `isFavorited` default `false`.
+
+**Belum ditambahin ke** `GET /explore?tab=products`, `GET /companies/:id/products`
+(Product Catalog), dan `GET /products/search` — kalau butuh di situ juga,
+kasih tau, tinggal pola yang sama.
+
+## Favorites Dirombak: company_id + product_id, Bukan Polymorphic (19 Aug 2026)
+
+Desain awal `visitor_favorite` pakai pola polymorphic generik
+(`target_type`: 'COMPANY'/'PRODUCT', `target_id`: angka) — TERNYATA rawan
+bug yang SAMA kayak filter product type sebelumnya: `product_id` di
+`exhibitor_product` gak unik lintas company (reset per company), jadi
+`target_id` doang gak cukup buat identifikasi produk yang bener.
+
+**Struktur baru:**
+- Favorite COMPANY -> `company_id` diisi, `product_id` NULL
+- Favorite PRODUCT -> `company_id` diisi (company PEMILIK produknya) DAN
+  `product_id` diisi — dua-duanya wajib bareng
+
+**Request body `POST /favorites/toggle` sekarang:**
+```json
+// Favorite company
+{ "companyId": 1 }
+
+// Favorite product (companyId = company pemilik produk itu)
+{ "companyId": 1, "productId": 5 }
+```
+
+Migration `1732890000000` **TRUNCATE data lama** di `visitor_favorite`
+sebelum restructure — kolom lama (`target_type`/`target_id`) gak punya
+cukup info buat di-backfill otomatis ke `company_id`/`product_id` (product
+favorite lama gak nyimpen company-nya). Dampaknya minim karena fitur ini
+baru aja diluncurkan.
+
+Unique constraint pakai `COALESCE(product_id, 0)` biar company-favorite
+(product_id NULL) tetap ke-enforce unik per visitor (Postgres default
+nganggep NULL selalu "beda" di unique index biasa).
 
 ## Pelajaran Penting: Jangan Nulis Kolom Baru di Tabel yang Di-sync (13 Aug 2026)
 

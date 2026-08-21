@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -13,6 +13,7 @@ import * as path from 'path';
 import databaseConfig from './config/database.config';
 import { envValidationSchema } from './config/env.validation';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { HomeModule } from './modules/home/home.module';
 import { ExploreModule } from './modules/explore/explore.module';
@@ -91,6 +92,10 @@ import { PushNotificationsModule } from './modules/push-notifications/push-notif
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: DateFormatInterceptor,
     },
   ],
 })

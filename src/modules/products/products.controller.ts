@@ -31,6 +31,6 @@ export class ProductsController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @Param('productId', ParseIntPipe) productId: number,
   ) {
-    return this.productsService.getDetail(user.eventsId, companyId, productId);
+    return this.productsService.getDetail(user.eventsId, companyId, productId, user.guestsId);
   }
 }

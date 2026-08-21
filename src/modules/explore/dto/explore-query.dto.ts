@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ExploreQueryDto {
@@ -24,11 +24,13 @@ export class ExploreQueryDto {
   @Min(0)
   maxInvestment?: number;
 
-  // Filter tab Products: product yang punya salah satu product type ini
+  // Filter tab Products: product yang punya SALAH SATU dari product type
+  // ini (OR, bukan harus semua). Bisa kirim 1 nilai (?productTypeId=1)
+  // atau banyak (?productTypeId=1&productTypeId=2&productTypeId=3).
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  productTypeId?: number;
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]).map(Number))
+  @IsInt({ each: true })
+  productTypeId?: number[];
 
   @IsOptional()
   @IsIn(['companies', 'products', 'categories'])

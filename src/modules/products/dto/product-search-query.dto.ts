@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ProductSearchQueryDto {
@@ -7,10 +7,11 @@ export class ProductSearchQueryDto {
   keyword?: string;
 
   // Filter berdasarkan product type (dari filter chip: Automation/IoT/AI/dst)
+  // Bisa 1 nilai (?productTypeId=1) atau banyak (?productTypeId=1&productTypeId=2)
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  productTypeId?: number;
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]).map(Number))
+  @IsInt({ each: true })
+  productTypeId?: number[];
 
   @IsOptional()
   @Type(() => Number)

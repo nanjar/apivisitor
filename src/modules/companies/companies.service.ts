@@ -1,12 +1,13 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nService } from 'nestjs-i18n';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ExhibitorCompany } from './entities/exhibitor-company.entity';
 import { Exhibitor } from './entities/exhibitor.entity';
 import { ExhibitorProduct } from './entities/exhibitor-product.entity';
 import { ExhibitorProductHasType } from './entities/exhibitor-product-has-type.entity';
 import { VisitorCompanyViewLog } from '../explore/entities/visitor-company-view-log.entity';
+import { Favorite } from '../favorites/entities/favorite.entity';
 import { BoothResolverService } from '../checkin/booth-resolver.service';
 import { ProductTypeResolverService } from '../product-types/product-type-resolver.service';
 import { CompanyDetailResponseDto } from './dto/company-detail-response.dto';
@@ -24,6 +25,8 @@ export class CompaniesService {
     private readonly productRepo: Repository<ExhibitorProduct>,
     @InjectRepository(VisitorCompanyViewLog)
     private readonly viewLogRepo: Repository<VisitorCompanyViewLog>,
+    @InjectRepository(Favorite)
+    private readonly favoriteRepo: Repository<Favorite>,
     private readonly boothResolver: BoothResolverService,
     private readonly productTypeResolver: ProductTypeResolverService,
     private readonly i18n: I18nService,
@@ -41,7 +44,7 @@ export class CompaniesService {
       throw new NotFoundException(this.i18n.t('messages.errors.companyNotFound'));
     }
 
-    const [pics, totalProducts, booth] = await Promise.all([
+    const [pics, totalProducts, booth, isFavorited] = await Promise.all([
       this.exhibitorRepo.find({
         where: { eventsId, companyId, approvalStatus: 'AP' },
         order: { inCharge: 'DESC' },
@@ -50,6 +53,11 @@ export class CompaniesService {
         where: { eventsId, companyId, approvalStatus: 'AP' },
       }),
       this.boothResolver.resolveOne(eventsId, companyId),
+      guestsId
+        ? this.favoriteRepo
+            .findOne({ where: { eventsId, guestsId, companyId, productId: IsNull() } })
+            .then((f) => !!f)
+        : Promise.resolve(false),
     ]);
 
     // Catat "Recently Viewed" — fire-and-forget, gak boleh gagalin response
@@ -75,6 +83,7 @@ export class CompaniesService {
       venueName: booth.venueName,
       hallLabel: booth.hallLabel,
       boothLabel: booth.boothLabel,
+      isFavorited,
       pics: pics.map((p) => ({
         id: p.id,
         fullname: p.fullname,
@@ -91,7 +100,7 @@ export class CompaniesService {
     companyId: number,
     page = 1,
     limit = 20,
-    productTypeId?: number,
+    productTypeIds?: number[],
   ) {
     const qb = this.productRepo
       .createQueryBuilder('p')
@@ -99,13 +108,13 @@ export class CompaniesService {
       .andWhere('p.companyId = :companyId', { companyId })
       .andWhere('p.approvalStatus = :status', { status: 'AP' });
 
-    if (productTypeId !== undefined) {
+    if (productTypeIds?.length) {
       qb.innerJoin(
         ExhibitorProductHasType,
         'pivot',
-        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId = :typeId',
-        { typeId: productTypeId },
-      );
+        'pivot.eventsId = p.eventsId AND pivot.companyId = p.companyId AND pivot.productId = p.id AND pivot.productTypeId IN (:...typeIds)',
+        { typeIds: productTypeIds },
+      ).distinct(true); // produk yang match >1 type gak boleh muncul dobel gara-gara JOIN
     }
 
     const [items, total] = await qb
