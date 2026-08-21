@@ -37,6 +37,7 @@ export class CompaniesController {
       Number(page) || 1,
       Number(limit) || 20,
       productTypeIds,
+      user.guestsId,
     );
   }
 }

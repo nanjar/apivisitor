@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nService } from 'nestjs-i18n';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { ExhibitorProduct } from '../companies/entities/exhibitor-product.entity';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { ExhibitorProductHasType } from '../companies/entities/exhibitor-product-has-type.entity';
@@ -23,7 +23,7 @@ export class ProductsService {
   ) {}
 
   // Screen: Product Search — cari produk lintas semua company dalam 1 event
-  async search(eventsId: number, query: ProductSearchQueryDto) {
+  async search(eventsId: number, guestsId: number, query: ProductSearchQueryDto) {
     const qb = this.productRepo
       .createQueryBuilder('p')
       .where('p.eventsId = :eventsId', { eventsId })
@@ -67,6 +67,12 @@ export class ProductsService {
       items.map((p) => ({ companyId: p.companyId, productId: p.id })),
     );
 
+    // Produk bisa dari banyak company beda-beda, jadi ambil semua
+    // product-favorite milik visitor ini sekali jalan, dicocokin di memory
+    // pakai composite key companyId-productId (product_id gak unik lintas
+    // company).
+    const favoritedKeys = await this.getFavoritedProductKeys(eventsId, guestsId);
+
     return {
       items: items.map((p) => ({
         id: p.id,
@@ -76,11 +82,19 @@ export class ProductsService {
         productLogo: p.productLogo,
         investmentFee: p.investmentFee,
         productTypes: productTypeMap.get(`${p.companyId}-${p.id}`) ?? [],
+        isFavorited: favoritedKeys.has(`${p.companyId}-${p.id}`),
       })),
       total,
       page: query.page,
       limit: query.limit,
     };
+  }
+
+  private async getFavoritedProductKeys(eventsId: number, guestsId: number): Promise<Set<string>> {
+    const favorites = await this.favoriteRepo.find({
+      where: { eventsId, guestsId, productId: Not(IsNull()) },
+    });
+    return new Set(favorites.map((f) => `${f.companyId}-${f.productId}`));
   }
 
   // Screen: Product Catalog — daftar product type buat filter chip

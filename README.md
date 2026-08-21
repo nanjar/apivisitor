@@ -119,9 +119,16 @@ Semua resolve dari tabel `visitor_favorite` yang udah dirombak
 (secara teknis gak mungkin karena semua endpoint ini udah di-guard JWT,
 tapi sebagai fallback) — `isFavorited` default `false`.
 
-**Belum ditambahin ke** `GET /explore?tab=products`, `GET /companies/:id/products`
-(Product Catalog), dan `GET /products/search` — kalau butuh di situ juga,
-kasih tau, tinggal pola yang sama.
+**Cakupan lengkap (20 Aug 2026):**
+- `GET /explore?tab=companies` ✅
+- `GET /explore?tab=products` ✅
+- `GET /companies/:id` (Company Detail) ✅
+- `GET /companies/:id/products` (Product Catalog) ✅
+- `GET /products/search` (Product Search) ✅
+- `GET /products/company/:companyId/:productId` (Product Detail) ✅
+
+Semua tempat yang nampilin company/produk sekarang konsisten punya
+`isFavorited`.
 
 ## Favorites Dirombak: company_id + product_id, Bukan Polymorphic (19 Aug 2026)
 

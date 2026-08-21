@@ -15,7 +15,7 @@ export class ProductsController {
   // Screen: Product Search
   @Get('search')
   search(@CurrentUser() user: CurrentVisitor, @Query() query: ProductSearchQueryDto) {
-    return this.productsService.search(user.eventsId, query);
+    return this.productsService.search(user.eventsId, user.guestsId, query);
   }
 
   // Filter chip "All (24) | Automation | IoT | AI | Sensor" di Product Catalog

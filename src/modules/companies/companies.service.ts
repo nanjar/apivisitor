@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nService } from 'nestjs-i18n';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { ExhibitorCompany } from './entities/exhibitor-company.entity';
 import { Exhibitor } from './entities/exhibitor.entity';
 import { ExhibitorProduct } from './entities/exhibitor-product.entity';
@@ -101,6 +101,7 @@ export class CompaniesService {
     page = 1,
     limit = 20,
     productTypeIds?: number[],
+    guestsId?: number,
   ) {
     const qb = this.productRepo
       .createQueryBuilder('p')
@@ -128,6 +129,18 @@ export class CompaniesService {
       items.map((p) => ({ companyId: p.companyId, productId: p.id })),
     );
 
+    // Semua produk di endpoint ini dari 1 company yang sama, jadi cukup 1
+    // query batch (companyId fix, productId IN [...]) buat cek favorite.
+    const favoritedProductIds = guestsId
+      ? new Set(
+          (
+            await this.favoriteRepo.find({
+              where: { eventsId, guestsId, companyId, productId: In(items.map((p) => p.id)) },
+            })
+          ).map((f) => f.productId),
+        )
+      : new Set<number | null>();
+
     return {
       items: items.map((p) => ({
         id: p.id,
@@ -136,6 +149,7 @@ export class CompaniesService {
         investmentFee: p.investmentFee,
         productDescription: p.productDescription,
         productTypes: productTypeMap.get(`${p.companyId}-${p.id}`) ?? [],
+        isFavorited: favoritedProductIds.has(p.id),
       })),
       total,
       page,

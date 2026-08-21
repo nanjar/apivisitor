@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { ExhibitorProduct } from '../companies/entities/exhibitor-product.entity';
 import { ExhibitorProductHasType } from '../companies/entities/exhibitor-product-has-type.entity';
@@ -29,7 +29,7 @@ export class ExploreService {
 
   async search(eventsId: number, guestsId: number, query: ExploreQueryDto) {
     if (query.tab === 'products') {
-      return this.searchProducts(eventsId, query);
+      return this.searchProducts(eventsId, guestsId, query);
     }
     if (query.tab === 'categories') {
       // Belum ada tabel kategori/industri exhibitor di skema yang dikirim.
@@ -126,7 +126,7 @@ export class ExploreService {
     };
   }
 
-  private async searchProducts(eventsId: number, query: ExploreQueryDto) {
+  private async searchProducts(eventsId: number, guestsId: number, query: ExploreQueryDto) {
     const qb = this.productRepo
       .createQueryBuilder('p')
       .where('p.eventsId = :eventsId', { eventsId })
@@ -161,6 +161,12 @@ export class ExploreService {
       items.map((p) => ({ companyId: p.companyId, productId: p.id })),
     );
 
+    // Produk di sini bisa dari BANYAK company beda-beda, jadi ambil semua
+    // product-favorite milik visitor ini sekali jalan (biasanya dikit),
+    // dicocokin di memory pakai composite key companyId-productId (product_id
+    // gak unik lintas company).
+    const favoritedKeys = await this.getFavoritedProductKeys(eventsId, guestsId);
+
     return {
       tab: 'products',
       items: items.map((p) => ({
@@ -170,11 +176,19 @@ export class ExploreService {
         productLogo: p.productLogo,
         investmentFee: p.investmentFee,
         productTypes: productTypeMap.get(`${p.companyId}-${p.id}`) ?? [],
+        isFavorited: favoritedKeys.has(`${p.companyId}-${p.id}`),
       })),
       total,
       page: query.page,
       limit: query.limit,
     };
+  }
+
+  private async getFavoritedProductKeys(eventsId: number, guestsId: number): Promise<Set<string>> {
+    const favorites = await this.favoriteRepo.find({
+      where: { eventsId, guestsId, productId: Not(IsNull()) },
+    });
+    return new Set(favorites.map((f) => `${f.companyId}-${f.productId}`));
   }
 
   // Screen: Explore -> "Recently Viewed" section
