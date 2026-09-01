@@ -46,4 +46,10 @@ export class Event {
   // (kemungkinan 'D' = Draft/Deleted, dst) — treat 'A' sebagai "tayang".
   @Column({ name: 'status', type: 'varchar', length: 1, default: 'A' })
   status: string;
+
+  // Event key 6-digit untuk login exhibitor app (event key + no. HP -> OTP WA).
+  // select:false WAJIB - kolom ini setara credential, jangan pernah ikut
+  // ke response query default. Select eksplisit hanya di service auth exhibitor.
+  @Column({ name: 'ev_token', type: 'varchar', length: 200, nullable: true, select: false })
+  evToken: string | null;
 }
