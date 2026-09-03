@@ -32,4 +32,7 @@ export class LinkClickLog {
 
   @Column({ name: 'clicked_at', type: 'timestamptz' })
   clickedAt: Date;
+
+  @Column({ name: 'pushed_at', type: 'timestamptz', nullable: true })
+  pushedAt: Date | null;
 }
