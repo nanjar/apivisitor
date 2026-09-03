@@ -182,6 +182,11 @@ export class AppointmentsService {
         meetingTimeslot: normalizedTimeSlot,
         meetingLocation: dto.meetingLocationId,
         meetingScore: dto.leadTemperature ?? 'Cold',
+        // Fix Sept 2026: sebelumnya company_id gak pernah tersimpan di
+        // mana pun untuk meeting baru (meeting_member_v2 juga gak pernah
+        // di-insert) - exhibitor app gak bisa tahu meeting ini punya
+        // company siapa. Sekarang company_id disimpan langsung di sini.
+        companyId: dto.companyId,
       });
       await meetingRepo.save(meeting);
 

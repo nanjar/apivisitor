@@ -56,4 +56,7 @@ export class EventMeeting {
 
   @Column({ name: 'meeting_score', type: 'varchar', length: 10, nullable: true })
   meetingScore: string | null;
+
+  @Column({ name: 'company_id', type: 'int', nullable: true })
+  companyId: number | null;
 }
