@@ -5,6 +5,7 @@ import { Exhibitor } from './entities/exhibitor.entity';
 import { ExhibitorProduct } from './entities/exhibitor-product.entity';
 import { VisitorCompanyViewLog } from '../explore/entities/visitor-company-view-log.entity';
 import { Favorite } from '../favorites/entities/favorite.entity';
+import { LinkClickLog } from '../analytics/entities/link-click-log.entity';
 import { CheckinModule } from '../checkin/checkin.module';
 import { ProductTypesModule } from '../product-types/product-types.module';
 import { CompaniesController } from './companies.controller';
@@ -18,6 +19,7 @@ import { CompaniesService } from './companies.service';
       ExhibitorProduct,
       VisitorCompanyViewLog,
       Favorite,
+      LinkClickLog,
     ]),
     CheckinModule,
     ProductTypesModule,

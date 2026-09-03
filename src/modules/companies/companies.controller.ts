@@ -1,7 +1,8 @@
-import { Controller, Get, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentVisitor } from '../../common/decorators/current-user.decorator';
 import { CompaniesService } from './companies.service';
+import { LogLinkClickDto } from '../analytics/dto/log-link-click.dto';
 
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiTags('Companies')
@@ -37,6 +38,24 @@ export class CompaniesController {
       Number(page) || 1,
       Number(limit) || 20,
       productTypeIds,
+      user.guestsId,
+    );
+  }
+
+  // Screen: Company Detail / Product Detail - klik tombol IG/FB/TikTok/
+  // website/brosur. productId di body opsional (isi kalau klik dari
+  // Product Detail).
+  @Post(':id/click')
+  logClick(
+    @CurrentUser() user: CurrentVisitor,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: LogLinkClickDto,
+  ) {
+    return this.companiesService.logLinkClick(
+      user.eventsId,
+      id,
+      dto.linkType,
+      dto.productId,
       user.guestsId,
     );
   }

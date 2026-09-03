@@ -11,6 +11,7 @@ import { Favorite } from '../favorites/entities/favorite.entity';
 import { BoothResolverService } from '../checkin/booth-resolver.service';
 import { ProductTypeResolverService } from '../product-types/product-type-resolver.service';
 import { CompanyDetailResponseDto } from './dto/company-detail-response.dto';
+import { LinkClickLog } from '../analytics/entities/link-click-log.entity';
 
 @Injectable()
 export class CompaniesService {
@@ -27,6 +28,8 @@ export class CompaniesService {
     private readonly viewLogRepo: Repository<VisitorCompanyViewLog>,
     @InjectRepository(Favorite)
     private readonly favoriteRepo: Repository<Favorite>,
+    @InjectRepository(LinkClickLog)
+    private readonly linkClickLogRepo: Repository<LinkClickLog>,
     private readonly boothResolver: BoothResolverService,
     private readonly productTypeResolver: ProductTypeResolverService,
     private readonly i18n: I18nService,
@@ -167,5 +170,28 @@ export class CompaniesService {
         this.viewLogRepo.create({ eventsId, guestsId, companyId, viewedAt: new Date() }),
       );
     }
+  }
+
+  // Screen: Company Detail / Product Detail - klik ke IG/FB/TikTok/
+  // website/brosur. Fire-and-forget dari sisi client, dicatat buat
+  // dibaca exhibitor app di Reports (shared Postgres, tidak sync MySQL).
+  async logLinkClick(
+    eventsId: number,
+    companyId: number,
+    linkType: string,
+    productId?: number,
+    guestsId?: number,
+  ) {
+    await this.linkClickLogRepo.save(
+      this.linkClickLogRepo.create({
+        eventsId,
+        companyId,
+        productId: productId ?? null,
+        guestsId: guestsId ?? null,
+        linkType: linkType as any,
+        clickedAt: new Date(),
+      }),
+    );
+    return { ok: true };
   }
 }
