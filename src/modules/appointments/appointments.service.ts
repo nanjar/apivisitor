@@ -18,6 +18,9 @@ import { MeetingInterest } from './entities/meeting-interest.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { AppointmentListQueryDto } from './dto/appointment-list-query.dto';
 import { mapMeetingApprovalStatus } from './meeting-status.util';
+import { ExhibitorHaveCompany } from '../exhibitor-app/entities/exhibitor-have-company.entity';
+import { ExhibitorNotification } from '../exhibitor-app/entities/exhibitor-notification.entity';
+import { GuestTicket } from '../visitors/entities/guest-ticket.entity';
 
 // ASUMSI: durasi 1 meeting = 45 menit. Gak ada kolom durasi eksplisit di
 // company_timeslot/events_meeting_v2 (cuma titik waktu mulai per 15 menit),
@@ -44,6 +47,12 @@ export class AppointmentsService {
     private readonly interestOptionRepo: Repository<InterestOption>,
     @InjectRepository(MeetingInterest)
     private readonly meetingInterestRepo: Repository<MeetingInterest>,
+    @InjectRepository(ExhibitorHaveCompany)
+    private readonly haveCompanyRepo: Repository<ExhibitorHaveCompany>,
+    @InjectRepository(ExhibitorNotification)
+    private readonly exhibitorNotificationRepo: Repository<ExhibitorNotification>,
+    @InjectRepository(GuestTicket)
+    private readonly guestTicketRepo: Repository<GuestTicket>,
     private readonly i18n: I18nService,
   ) {}
 
@@ -207,6 +216,38 @@ export class AppointmentsService {
         status: 'Pending',
         message: 'Permintaan appointment terkirim, menunggu konfirmasi exhibitor',
       };
+    }).then(async (result) => {
+      // Notifikasi ke semua exhibitor_id tim company ini - fire-and-forget
+      // (kegagalan bikin notifikasi TIDAK boleh gagalin booking, booking-nya
+      // sudah tersimpan duluan di transaction di atas).
+      try {
+        const teamLinks = await this.haveCompanyRepo.find({
+          where: { eventsId, companyId: dto.companyId },
+        });
+        if (teamLinks.length > 0) {
+          const guest = await this.guestTicketRepo.findOne({ where: { eventsId, guestsId } });
+          const requesterName = guest?.fullname ?? 'Visitor';
+          await this.exhibitorNotificationRepo.save(
+            teamLinks.map((link) =>
+              this.exhibitorNotificationRepo.create({
+                eventsId,
+                exhibitorId: link.exhibitorId,
+                type: 'MEETING_REQUEST',
+                title: 'Permintaan meeting baru',
+                body: `${requesterName} minta meeting dengan booth kamu`,
+                data: { meetingId: result.id },
+                isRead: false,
+                createdAt: new Date(),
+              }),
+            ),
+          );
+        }
+      } catch (err) {
+        // Sengaja ditelan - notifikasi gagal bukan alasan gagalin response
+        // booking ke visitor, booking-nya sendiri sudah sukses.
+      }
+
+      return result;
     });
   }
 

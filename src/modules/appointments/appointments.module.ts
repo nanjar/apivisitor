@@ -8,6 +8,9 @@ import { Agenda } from '../schedule/entities/agenda.entity';
 import { ExhCompanySpace } from '../venue/entities/exh-company-space.entity';
 import { InterestOption } from './entities/interest-option.entity';
 import { MeetingInterest } from './entities/meeting-interest.entity';
+import { ExhibitorHaveCompany } from '../exhibitor-app/entities/exhibitor-have-company.entity';
+import { ExhibitorNotification } from '../exhibitor-app/entities/exhibitor-notification.entity';
+import { GuestTicket } from '../visitors/entities/guest-ticket.entity';
 import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
 
@@ -22,6 +25,9 @@ import { AppointmentsService } from './appointments.service';
       ExhCompanySpace,
       InterestOption,
       MeetingInterest,
+      ExhibitorHaveCompany,
+      ExhibitorNotification,
+      GuestTicket,
     ]),
   ],
   controllers: [AppointmentsController],
