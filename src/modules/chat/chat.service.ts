@@ -8,6 +8,7 @@ import { ChatMessage } from './entities/chat-message.entity';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { WebhookService } from '../webhooks/webhook.service';
+import { ExhibitorNotification } from '../exhibitor-app/entities/exhibitor-notification.entity';
 
 @Injectable()
 export class ChatService {
@@ -21,6 +22,8 @@ export class ChatService {
     private readonly i18n: I18nService,
     private readonly pushNotifications: PushNotificationsService,
     private readonly webhookService: WebhookService,
+    @InjectRepository(ExhibitorNotification)
+    private readonly exhibitorNotificationRepo: Repository<ExhibitorNotification>,
   ) {}
 
   // Screen: Chat List
@@ -173,6 +176,25 @@ export class ChatService {
             senderName,
             message: text,
             sentAt: message.createdAt.toISOString(),
+          }),
+        ),
+      );
+
+      // Tambahan (Sept 2026): kirim juga ke exhibitor_notification (shared
+      // Postgres DB dengan apiexhibitor) - lebih andal dari webhook yang
+      // butuh URL eksternal ter-konfigurasi. guestsId pada baris EX =
+      // exhibitor_contact.id (konvensi yang sama dipakai meeting_member_v2).
+      await this.exhibitorNotificationRepo.save(
+        exhibitorMembers.map((r) =>
+          this.exhibitorNotificationRepo.create({
+            eventsId,
+            exhibitorId: r.guestsId,
+            type: 'CHAT_MESSAGE',
+            title: senderName,
+            body: text.length > 200 ? text.slice(0, 200) + '…' : text,
+            data: { chatId },
+            isRead: false,
+            createdAt: new Date(),
           }),
         ),
       );
