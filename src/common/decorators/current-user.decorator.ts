@@ -4,6 +4,7 @@ export interface CurrentVisitor {
   guestsId: number;
   eventsId: number;
   ticketId: number;
+  memberGuestsId: number;
   email: string;
   fullname: string;
 }

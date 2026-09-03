@@ -173,21 +173,50 @@ export class CompaniesService {
   }
 
   // Screen: Company Detail / Product Detail - klik ke IG/FB/TikTok/
-  // website/brosur. Fire-and-forget dari sisi client, dicatat buat
-  // dibaca exhibitor app di Reports (shared Postgres, tidak sync MySQL).
+  // website/brosur/product URL. Fire-and-forget dari sisi client,
+  // dicatat buat dibaca exhibitor app di Reports (shared Postgres) DAN
+  // di-push ke tabel legacy MySQL per-tipe (instagram_clicked_v2 dkk).
+  //
+  // PENTING: exhibitor_company TIDAK PUNYA field sosmed sama sekali
+  // (cuma company_website) - field IG/FB/TikTok/Twitter/promo/product_url
+  // semua ada di exhibitor_product. Klik dari "Company Detail" itu
+  // sebenarnya nampilin info product UTAMA (produk pertama) milik company
+  // itu - dikonfirmasi Sept 2026. Kalau productId gak dikirim client,
+  // resolve ke produk pertama (id terkecil) milik company ini.
   async logLinkClick(
     eventsId: number,
     companyId: number,
     linkType: string,
-    productId?: number,
-    guestsId?: number,
+    productId: number | undefined,
+    guestsId: number,
+    memberGuestsId: number,
   ) {
+    let resolvedProductId = productId;
+    if (!resolvedProductId) {
+      const defaultProduct = await this.productRepo.findOne({
+        where: { eventsId, companyId },
+        order: { id: 'ASC' },
+      });
+      if (!defaultProduct) {
+        // Company belum punya product sama sekali - gak ada product_id
+        // valid buat dikirim ke tabel legacy (NOT NULL). Tetap dicatat
+        // di Postgres (buat Reports internal), tapi push-job nanti akan
+        // skip baris ini ke MySQL karena productId null.
+        this.logger.warn(
+          `logLinkClick: company ${companyId} (events ${eventsId}) belum punya product, product_id bakal NULL`,
+        );
+      } else {
+        resolvedProductId = defaultProduct.id;
+      }
+    }
+
     await this.linkClickLogRepo.save(
       this.linkClickLogRepo.create({
         eventsId,
         companyId,
-        productId: productId ?? null,
-        guestsId: guestsId ?? null,
+        productId: resolvedProductId ?? null,
+        guestsId,
+        memberGuestsId,
         linkType: linkType as any,
         clickedAt: new Date(),
       }),

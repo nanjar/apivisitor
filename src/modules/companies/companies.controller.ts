@@ -57,6 +57,7 @@ export class CompaniesController {
       dto.linkType,
       dto.productId,
       user.guestsId,
+      user.memberGuestsId,
     );
   }
 }

@@ -13,6 +13,11 @@ export interface JwtPayload {
   ticketId: number;
   email: string;
   fullname: string;
+  // Fix Sept 2026: dibutuhkan buat push click-tracking ke tabel legacy
+  // MySQL (instagram_clicked_v2 dkk) - itu guests_ticket.id, BUKAN
+  // ticket_id. Satu guest bisa punya banyak tiket (token beda2), id ini
+  // yang bedain baris spesifik tiket yang dipakai login.
+  memberGuestsId: number;
 }
 
 @Injectable()
@@ -73,6 +78,7 @@ export class AuthService {
       ticketId: guest.ticketId,
       email: guest.email ?? '',
       fullname: guest.fullname ?? '',
+      memberGuestsId: guest.id,
     };
 
     // CATATAN: access token SENGAJA gak dikasih `expiresIn` (no exp claim

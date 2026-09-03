@@ -20,6 +20,11 @@ export class LinkClickLog {
   @Column({ name: 'guests_id', type: 'int', nullable: true })
   guestsId: number | null;
 
+  // guests_ticket.id (bukan ticket_id) - dibutuhkan buat push ke tabel
+  // legacy MySQL (instagram_clicked_v2 dkk), PK-nya termasuk kolom ini.
+  @Column({ name: 'member_guests_id', type: 'int', nullable: true })
+  memberGuestsId: number | null;
+
   @Column({ name: 'link_type', type: 'varchar', length: 20 })
   linkType:
     | 'INSTAGRAM'
@@ -28,7 +33,8 @@ export class LinkClickLog {
     | 'TWITTER'
     | 'WEBSITE'
     | 'BROCHURE'
-    | 'PROMO';
+    | 'PROMO'
+    | 'PRODUCT_URL';
 
   @Column({ name: 'clicked_at', type: 'timestamptz' })
   clickedAt: Date;

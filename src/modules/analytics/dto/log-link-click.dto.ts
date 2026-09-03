@@ -3,9 +3,9 @@ import { IsIn, IsInt, IsOptional } from 'class-validator';
 
 export class LogLinkClickDto {
   @ApiProperty({
-    enum: ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'TWITTER', 'WEBSITE', 'BROCHURE', 'PROMO'],
+    enum: ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'TWITTER', 'WEBSITE', 'BROCHURE', 'PROMO', 'PRODUCT_URL'],
   })
-  @IsIn(['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'TWITTER', 'WEBSITE', 'BROCHURE', 'PROMO'])
+  @IsIn(['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'TWITTER', 'WEBSITE', 'BROCHURE', 'PROMO', 'PRODUCT_URL'])
   linkType: string;
 
   @ApiPropertyOptional({
