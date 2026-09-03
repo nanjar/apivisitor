@@ -23,7 +23,7 @@ export class DropExhibitorAppChatMessageStaging1732950000000
     await queryRunner.query(`DROP TABLE IF EXISTS "exhibitor_app_chat_message"`);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // Sengaja tidak di-recreate di rollback - kalau perlu mundur, table
     // definition-nya ada di migration 1732920000000 (yang juga jangan
     // di-rollback sendirian, karena isinya digabung dengan meeting_action).
