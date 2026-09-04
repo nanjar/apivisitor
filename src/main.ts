@@ -5,10 +5,18 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as path from 'path';
 import { AppModule } from './app.module';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
+
+  // Redis adapter buat Socket.IO (ChatGateway visitor) - biar broadcast
+  // real-time sampai lintas server ke apiexhibitor. Fail-open: kalau
+  // REDIS_HOST kosong/connect gagal, fallback ke in-memory adapter.
+  const redisIoAdapter = new RedisIoAdapter(app, configService);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   app.setGlobalPrefix('api/v1');
 

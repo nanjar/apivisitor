@@ -34,4 +34,12 @@ export const envValidationSchema = Joi.object({
   // sendiri (device token PIC dikelola di sana, bukan di backend visitor ini).
   EXHIBITOR_CHAT_WEBHOOK_URL: Joi.string().uri().optional(),
   EXHIBITOR_CHAT_WEBHOOK_SECRET: Joi.string().optional(),
+
+  // Redis (Socket.IO cross-server adapter) - opsional, fail-open. Kalau
+  // kosong, ChatGateway pakai in-memory adapter (real-time cuma dalam
+  // server sendiri, gak lintas ke apiexhibitor).
+  REDIS_HOST: Joi.string().optional(),
+  REDIS_PORT: Joi.number().default(6379),
+  REDIS_PASSWORD: Joi.string().allow('').optional(),
+  REDIS_DB: Joi.number().default(0),
 });
