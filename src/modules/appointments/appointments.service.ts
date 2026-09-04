@@ -20,6 +20,8 @@ import { AppointmentListQueryDto } from './dto/appointment-list-query.dto';
 import { mapMeetingApprovalStatus } from './meeting-status.util';
 import { ExhibitorHaveCompany } from '../exhibitor-app/entities/exhibitor-have-company.entity';
 import { ExhibitorNotification } from '../exhibitor-app/entities/exhibitor-notification.entity';
+import { ExhibitorDeviceToken } from '../exhibitor-app/entities/exhibitor-device-token.entity';
+import { FirebaseAdminService } from '../push-notifications/firebase-admin.service';
 import { GuestTicket } from '../visitors/entities/guest-ticket.entity';
 
 // ASUMSI: durasi 1 meeting = 45 menit. Gak ada kolom durasi eksplisit di
@@ -53,6 +55,9 @@ export class AppointmentsService {
     private readonly exhibitorNotificationRepo: Repository<ExhibitorNotification>,
     @InjectRepository(GuestTicket)
     private readonly guestTicketRepo: Repository<GuestTicket>,
+    @InjectRepository(ExhibitorDeviceToken)
+    private readonly exhibitorDeviceTokenRepo: Repository<ExhibitorDeviceToken>,
+    private readonly firebaseAdmin: FirebaseAdminService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -241,6 +246,27 @@ export class AppointmentsService {
               }),
             ),
           );
+
+          // FCM push ke device exhibitor tim ini - fail open.
+          if (this.firebaseAdmin.isEnabled) {
+            const tokens = await this.exhibitorDeviceTokenRepo
+              .createQueryBuilder('t')
+              .where('t.eventsId = :eventsId', { eventsId })
+              .andWhere('t.exhibitorId IN (:...ids)', {
+                ids: teamLinks.map((l) => l.exhibitorId),
+              })
+              .getMany();
+            if (tokens.length > 0) {
+              await this.firebaseAdmin.sendToTokens(
+                tokens.map((t) => t.deviceId),
+                {
+                  title: 'Permintaan meeting baru',
+                  body: `${requesterName} minta meeting dengan booth kamu`,
+                  data: { meetingId: String(result.id) },
+                },
+              );
+            }
+          }
         }
       } catch (err) {
         // Sengaja ditelan - notifikasi gagal bukan alasan gagalin response

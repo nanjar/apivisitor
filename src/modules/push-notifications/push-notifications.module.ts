@@ -9,6 +9,6 @@ import { PushNotificationsService } from './push-notifications.service';
   imports: [TypeOrmModule.forFeature([VisitorDeviceToken])],
   controllers: [PushNotificationsController],
   providers: [FirebaseAdminService, PushNotificationsService],
-  exports: [PushNotificationsService],
+  exports: [PushNotificationsService, FirebaseAdminService],
 })
 export class PushNotificationsModule {}

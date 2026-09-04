@@ -10,7 +10,9 @@ import { InterestOption } from './entities/interest-option.entity';
 import { MeetingInterest } from './entities/meeting-interest.entity';
 import { ExhibitorHaveCompany } from '../exhibitor-app/entities/exhibitor-have-company.entity';
 import { ExhibitorNotification } from '../exhibitor-app/entities/exhibitor-notification.entity';
+import { ExhibitorDeviceToken } from '../exhibitor-app/entities/exhibitor-device-token.entity';
 import { GuestTicket } from '../visitors/entities/guest-ticket.entity';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
 
@@ -28,7 +30,9 @@ import { AppointmentsService } from './appointments.service';
       ExhibitorHaveCompany,
       ExhibitorNotification,
       GuestTicket,
+      ExhibitorDeviceToken,
     ]),
+    PushNotificationsModule,
   ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],

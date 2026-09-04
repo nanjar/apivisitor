@@ -9,6 +9,8 @@ import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { WebhookService } from '../webhooks/webhook.service';
 import { ExhibitorNotification } from '../exhibitor-app/entities/exhibitor-notification.entity';
+import { ExhibitorDeviceToken } from '../exhibitor-app/entities/exhibitor-device-token.entity';
+import { FirebaseAdminService } from '../push-notifications/firebase-admin.service';
 
 @Injectable()
 export class ChatService {
@@ -24,6 +26,9 @@ export class ChatService {
     private readonly webhookService: WebhookService,
     @InjectRepository(ExhibitorNotification)
     private readonly exhibitorNotificationRepo: Repository<ExhibitorNotification>,
+    @InjectRepository(ExhibitorDeviceToken)
+    private readonly exhibitorDeviceTokenRepo: Repository<ExhibitorDeviceToken>,
+    private readonly firebaseAdmin: FirebaseAdminService,
   ) {}
 
   // Screen: Chat List
@@ -199,8 +204,52 @@ export class ChatService {
         ),
       );
 
+      // FCM push ke device exhibitor - fail open, gagal kirim FCM TIDAK
+      // gagalin pengiriman chat (pesannya udah tersimpan duluan).
+      if (this.firebaseAdmin.isEnabled) {
+        await this.pushToExhibitors(
+          eventsId,
+          exhibitorMembers.map((r) => r.guestsId),
+          senderName,
+          text.length > 200 ? text.slice(0, 200) + '…' : text,
+          { chatId: String(chatId) },
+        );
+      }
+
       return message;
     });
+  }
+
+  /**
+   * Kirim FCM ke SEMUA device token dari BEBERAPA exhibitor sekaligus
+   * (satu chat message bisa punya lebih dari satu penerima exhibitor,
+   * misal beberapa staff company yang sama, atau E2E). Dikumpulkan dulu
+   * jadi satu request Firebase (efisien, bukan loop per-exhibitor).
+   */
+  private async pushToExhibitors(
+    eventsId: number,
+    exhibitorIds: number[],
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ) {
+    if (exhibitorIds.length === 0) return;
+    const tokens = await this.exhibitorDeviceTokenRepo
+      .createQueryBuilder('t')
+      .where('t.eventsId = :eventsId', { eventsId })
+      .andWhere('t.exhibitorId IN (:...ids)', { ids: exhibitorIds })
+      .getMany();
+
+    if (tokens.length === 0) return;
+
+    try {
+      await this.firebaseAdmin.sendToTokens(
+        tokens.map((t) => t.deviceId),
+        { title, body, data },
+      );
+    } catch {
+      // Fail open - FCM gagal jangan sampai gagalin flow chat.
+    }
   }
 
   private async assertMember(eventsId: number, guestsId: number, chatId: number) {

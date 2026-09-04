@@ -7,6 +7,7 @@ import { EventChatMember } from './entities/event-chat-member.entity';
 import { ChatMessage } from './entities/chat-message.entity';
 import { ExhibitorCompany } from '../companies/entities/exhibitor-company.entity';
 import { ExhibitorNotification } from '../exhibitor-app/entities/exhibitor-notification.entity';
+import { ExhibitorDeviceToken } from '../exhibitor-app/entities/exhibitor-device-token.entity';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { ChatController } from './chat.controller';
@@ -15,7 +16,14 @@ import { ChatGateway } from './gateway/chat.gateway';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EventChat, EventChatMember, ChatMessage, ExhibitorCompany, ExhibitorNotification]),
+    TypeOrmModule.forFeature([
+      EventChat,
+      EventChatMember,
+      ChatMessage,
+      ExhibitorCompany,
+      ExhibitorNotification,
+      ExhibitorDeviceToken,
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
